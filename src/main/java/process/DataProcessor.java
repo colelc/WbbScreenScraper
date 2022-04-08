@@ -11,17 +11,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import utils.CalendarUtils;
 import utils.ConfigUtils;
@@ -32,6 +29,8 @@ public class DataProcessor {
 
 	private static Integer id = null;
 	private static String SCOREBOARD_URL;
+	private static String BASE_URL;
+	private static Map<Integer, Map<String, String>> conferenceMap;
 	private static Map<Integer, Map<String, String>> teamMap;
 	private static Map<Integer, Map<String, String>> playerMap;
 	private static String now;
@@ -40,9 +39,11 @@ public class DataProcessor {
 
 	static {
 		try {
+			conferenceMap = new HashMap<>();
 			teamMap = new HashMap<>();
 			playerMap = new HashMap<>();
 			SCOREBOARD_URL = ConfigUtils.getProperty("espn.com.womens.scoreboard");
+			BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 
 			now = LocalDate.ofInstant(Instant.now(), ZoneId.systemDefault()).toString().replace("-", "");
 		} catch (Exception e) {
@@ -79,10 +80,10 @@ public class DataProcessor {
 
 		Set<String> datesProcessed = new HashSet<>();
 		String gameId = null;
-		String teamId = null;
-		String opponentTeamId = null;
-		String opponentConferenceId = null;
-		String conferenceId = null;
+		String homeTeamId = null;
+		String roadTeamId = null;
+		String homeConferenceId = null;
+		String roadConferenceId = null;
 
 		List<String> seasonDates = new ArrayList<>(CalendarUtils.generateDates(ConfigUtils.getProperty("season.start.date"), ConfigUtils.getProperty("season.end.date")));
 
@@ -105,82 +106,56 @@ public class DataProcessor {
 
 				log.info(gameDate + " -> " + SCOREBOARD_URL + gameDate);
 
-				String target = StringUtils.substringBetween(/**/
-						JsoupUtils.jsoupExtraction(SCOREBOARD_URL + gameDate).toString(), /**/
-						"window.espn.scoreboardData", /**/
-						"window.espn.scoreboardSettings")/**/
-						.replace("\t", "").replace(" = ", "")/**/
-				;
-				target = target.substring(0, target.length() - 1);
+				Document htmlDoc = JsoupUtils.parseStringToDocument(JsoupUtils.jsoupExtraction(SCOREBOARD_URL + gameDate).toString());
 
-				if (!utils.StringUtils.isPopulated(target)) {
-					log.warn(gameDate + " -> " + "Cannot acquire JSON target");
-					continue;
-				}
+				int sequence = -1;
+				Elements gameElements = JsoupUtils.nullElementCheck(htmlDoc.select("div.Scoreboard__Callouts"), "div.Scoreboard__Callouts");
+				if (gameElements != null && gameElements.first() != null) {
+					for (Element gameElement : gameElements) {
+						++sequence;
+						// set of 3 links (Gamecast, Box Score, Highlights) - we only care about the
+						// gameId which can be found in any of the 3 links
+						String href = gameElement.getElementsByAttribute("href").first().attr("href");
+						gameId = Arrays.asList(href.split("/")).stream().reduce((first, second) -> second).get();
 
-				JsonElement jsonElement = new GsonBuilder().setPrettyPrinting().create().fromJson(target, JsonObject.class).get("events");
-				if (!jsonElement.isJsonArray()) {
-					log.warn(gameDate + " -> " + "Cannot acquire array");
-					continue;
-				}
+						String gamecastUrl = BASE_URL + "game/_/gameId/" + gameId;
+						String boxscoreUrl = BASE_URL + "boxscore/_/gameId/" + gameId;
+						String playbyplayUrl = BASE_URL + "playbyplay/_/gameId/" + gameId;
 
-				JsonArray events = jsonElement.getAsJsonArray();
+						// need the team id's
+						Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors"), "ul.ScoreboardScoreCell__Competitors").get(sequence);
 
-				for (JsonElement event : events) {
-					if (!event.isJsonObject()) {
-						log.warn(gameDate + " -> " + "event is not a JSON Object");
-						continue;
-					}
+						String roadTeamUrl = competitorsElement.getElementsByTag("li").first().getElementsByTag("a").first().attr("href");
+						roadTeamId = Arrays.asList(roadTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
+						roadConferenceId = teamMap.get(Integer.valueOf(roadTeamId)).get("conferenceId");
 
-					JsonObject gameObject = event.getAsJsonObject();
+						String homeTeamUrl = competitorsElement.getElementsByTag("li").last().getElementsByTag("a").first().attr("href");
+						homeTeamId = Arrays.asList(homeTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
+						homeConferenceId = teamMap.get(Integer.valueOf(homeTeamId)).get("conferenceId");
 
-					gameId = gameObject.get("id").getAsString();
-					String gameName = gameObject.get("name").getAsString();
+						String title = teamMap.get(Integer.valueOf(roadTeamId)).get("teamName") /**/
+								+ " (" + conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")" /**/
+								+ " at " /**/
+								+ teamMap.get(Integer.valueOf(homeTeamId)).get("teamName") /**/
+								+ " (" + conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")";
 
-					String status = gameObject.get("status").getAsJsonObject().get("type").getAsJsonObject().get("detail").getAsString();
-					log.info(gameDate + " -> " + gameName + (status.compareTo("Final") != 0 ? " -> " + status : ""));
+						log.info(gameDate + " -> " + gameId + " " + title);
 
-					String[] ids = renderTeamAndConferenceIds(gameName);
-					opponentTeamId = ids[0]; // road team
-					opponentConferenceId = ids[1];
-					teamId = ids[2]; // home team
-					conferenceId = ids[3];
+						GamecastProcessor.generateGamecastData(/**/
+								gamecastUrl, /**/
+								gameId, /**/
+								gameDate, /**/
+								homeTeamId, /**/
+								homeConferenceId, /**/
+								roadTeamId, /**/
+								roadConferenceId, /**/
+								gamecastWriter);
 
-					// extract 3 URLs for gamestats, gamecast, and playbyplay files
-					JsonArray urlArray = gameObject.get("links").getAsJsonArray();
+						GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
 
-					for (JsonElement url : urlArray) {
-						JsonObject urlObject = url.getAsJsonObject();
-						String urlType = urlObject.get("text").getAsString();
-						String urlLink = urlObject.get("href").getAsString();
-
-						if (urlType.compareTo("Gamecast") == 0) {
-							String gameTimeUTC = CalendarUtils.parseUTCTime(gameObject.get("date").getAsString());
-							JsonObject venueObject = gameObject.get("competitions").getAsJsonArray().get(0).getAsJsonObject().get("venue").getAsJsonObject();
-							JsonArray networkArray = gameObject.get("competitions").getAsJsonArray().get(0).getAsJsonObject().get("geoBroadcasts").getAsJsonArray();
-
-							GamecastProcessor.generateGamecastData(/**/
-									urlLink, /**/
-									gameId, /**/
-									gameName, /**/
-									gameDate, /**/
-									gameTimeUTC, /**/
-									venueObject, /**/
-									networkArray, /**/
-									teamId, /**/
-									conferenceId, /**/
-									opponentTeamId, /**/
-									opponentConferenceId, /**/
-									status, /**/
-									gamecastWriter);
-						} else if (urlType.compareTo("Box Score") == 0) {
-							GameStatProcessor.processGameStats(urlLink, gameId, gameDate, teamId, conferenceId, opponentTeamId, opponentConferenceId, gameStatWriter);
-						} else if (urlType.compareTo("Play-by-Play") == 0) {
-							PlayByPlayProcessor.processPlayByPlay(urlLink, gameId, gameDate, teamId, conferenceId, opponentTeamId, opponentConferenceId, playerMap, playByPlayWriter);
-						}
+						PlayByPlayProcessor.processPlayByPlay(playbyplayUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
 					}
 				}
-
 			} catch (Exception e) {
 				throw e;
 			}
@@ -191,37 +166,6 @@ public class DataProcessor {
 		return datesProcessed;
 	}
 
-	private static String[] renderTeamAndConferenceIds(String gameName) throws Exception {
-		String[] retValue = new String[] { "", "", "", "" };
-
-		try {
-			List<String> teamNames = Arrays.asList(gameName.split(" at "));
-
-			// home team
-			Optional<Entry<Integer, Map<String, String>>> opt = teamMap.entrySet().stream().filter(f -> f.getValue().get("teamName").compareTo(teamNames.get(1)) == 0).findFirst();
-
-			if (opt.isEmpty()) {
-				;// log.warn("No teamId found in teamMap for " + teamNames.get(0));
-			} else {
-				retValue[2] = String.valueOf(opt.get().getKey());
-				retValue[3] = opt.get().getValue().get("conferenceId");
-			}
-
-			// road team
-			opt = teamMap.entrySet().stream().filter(f -> f.getValue().get("teamName").compareTo(teamNames.get(0)) == 0).findFirst();
-
-			if (opt.isEmpty()) {
-				;// log.warn("No opponentTeamId found in teamMap for " + teamNames.get(0));
-			} else {
-				retValue[0] = String.valueOf(opt.get().getKey());
-				retValue[1] = opt.get().getValue().get("conferenceId");
-			}
-		} catch (Exception e) {
-			throw e;
-		}
-		return retValue;
-	}
-
 	private static void loadDataFiles(String conferenceFile, /**/
 			String teamFile, /**/
 			String playerFile /**/
@@ -229,8 +173,7 @@ public class DataProcessor {
 	) throws Exception {
 
 		try {
-			// conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile),
-			// false);
+			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);
 			teamMap = fileDataToMap(FileUtils.readFileLines(teamFile), false);
 			playerMap = fileDataToMap(FileUtils.readFileLines(playerFile), false);
 			// scheduleMap = fileDataToMap(FileUtils.readFileLines(scheduleFile), false);
