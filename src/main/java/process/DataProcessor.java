@@ -125,9 +125,25 @@ public class DataProcessor {
 						// need the team id's
 						Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors"), "ul.ScoreboardScoreCell__Competitors").get(sequence);
 
-						String roadTeamUrl = competitorsElement.getElementsByTag("li").first().getElementsByTag("a").first().attr("href");
-						roadTeamId = Arrays.asList(roadTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
-						roadConferenceId = teamMap.get(Integer.valueOf(roadTeamId)).get("conferenceId");
+						Element el = competitorsElement.getElementsByTag("li").first();
+						if (el != null) {
+							String roadTeamUrl = competitorsElement.getElementsByTag("li").first().getElementsByTag("a").first().attr("href");
+							if (roadTeamUrl != null) {
+								roadTeamId = Arrays.asList(roadTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
+								if (roadTeamId != null) {
+									roadConferenceId = teamMap.get(Integer.valueOf(roadTeamId)).get("conferenceId");
+								} else {
+									log.warn("no roadTeamId: ");
+									System.out.println(roadTeamUrl);
+								}
+							} else {
+								log.warn("No roadTeamUrl:");
+								System.out.println(competitorsElement.toString());
+							}
+						} else {
+							log.warn("no element: ");
+							System.out.println(competitorsElement.toString());
+						}
 
 						String homeTeamUrl = competitorsElement.getElementsByTag("li").last().getElementsByTag("a").first().attr("href");
 						homeTeamId = Arrays.asList(homeTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);

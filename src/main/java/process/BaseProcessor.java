@@ -60,6 +60,7 @@ public class BaseProcessor {
 
 			// loadConferencesTeamsPlayersSchedules();
 
+			skipDates = new HashSet<>();
 			DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, conferenceOutputFile, teamOutputFile, playerOutputFile, gameStatOutputFile, playByPlayOutputFile, gamecastFile);
 		} catch (Exception e) {
 			throw e;
