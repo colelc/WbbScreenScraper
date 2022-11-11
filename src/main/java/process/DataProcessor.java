@@ -34,6 +34,7 @@ public class DataProcessor {
 	private static Map<Integer, Map<String, String>> teamMap;
 	private static Map<Integer, Map<String, String>> playerMap;
 	private static String now;
+	private static String NOT_AVAILABLE = "";
 
 	private static Logger log = Logger.getLogger(DataProcessor.class);
 
@@ -84,6 +85,7 @@ public class DataProcessor {
 		String roadTeamId = null;
 		String homeConferenceId = null;
 		String roadConferenceId = null;
+		String title = null;
 
 		List<String> seasonDates = new ArrayList<>(CalendarUtils.generateDates(ConfigUtils.getProperty("season.start.date"), ConfigUtils.getProperty("season.end.date")));
 
@@ -121,39 +123,41 @@ public class DataProcessor {
 						String gamecastUrl = BASE_URL + "game/_/gameId/" + gameId;
 						String boxscoreUrl = BASE_URL + "boxscore/_/gameId/" + gameId;
 						String playbyplayUrl = BASE_URL + "playbyplay/_/gameId/" + gameId;
+//						log.info(gamecastUrl);
+						log.info("");
+						log.info("Processing: " + boxscoreUrl);
+//						log.info(playbyplayUrl);
 
 						// need the team id's
 						Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors"), "ul.ScoreboardScoreCell__Competitors").get(sequence);
+						Elements el = competitorsElement.getElementsByTag("li");
 
-						Element el = competitorsElement.getElementsByTag("li").first();
-						if (el != null) {
-							String roadTeamUrl = competitorsElement.getElementsByTag("li").first().getElementsByTag("a").first().attr("href");
-							if (roadTeamUrl != null) {
-								roadTeamId = Arrays.asList(roadTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
-								if (roadTeamId != null) {
-									roadConferenceId = teamMap.get(Integer.valueOf(roadTeamId)).get("conferenceId");
-								} else {
-									log.warn("no roadTeamId: ");
-									System.out.println(roadTeamUrl);
-								}
-							} else {
-								log.warn("No roadTeamUrl:");
-								System.out.println(competitorsElement.toString());
+						roadTeamId = getARoadTeamId(competitorsElement, el);
+						roadConferenceId = getAConferenceId(roadTeamId);
+
+						homeTeamId = getAHomeTeamId(competitorsElement);
+						homeConferenceId = getAConferenceId(homeTeamId);
+
+						String thisRoadTeam = "";
+						if (roadTeamId != null && roadTeamId.trim().length() > 0) {
+							Map<String, String> thisRoadTeamMap = teamMap.get(Integer.valueOf(roadTeamId));
+							if (thisRoadTeamMap != null) {
+								thisRoadTeam = thisRoadTeamMap.get("teamName");
 							}
-						} else {
-							log.warn("no element: ");
-							System.out.println(competitorsElement.toString());
 						}
 
-						String homeTeamUrl = competitorsElement.getElementsByTag("li").last().getElementsByTag("a").first().attr("href");
-						homeTeamId = Arrays.asList(homeTeamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
-						homeConferenceId = teamMap.get(Integer.valueOf(homeTeamId)).get("conferenceId");
-
-						String title = teamMap.get(Integer.valueOf(roadTeamId)).get("teamName") /**/
-								+ " (" + conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")" /**/
+						title = thisRoadTeam /**/
+								+ " (" /**/
+								+ (roadConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")")/**/
+								// + conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")"
+								// /**/
 								+ " at " /**/
-								+ teamMap.get(Integer.valueOf(homeTeamId)).get("teamName") /**/
-								+ " (" + conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")";
+								+ (homeTeamId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : teamMap.get(Integer.valueOf(homeTeamId)).get("teamName"))/**/
+								// + teamMap.get(Integer.valueOf(homeTeamId)).get("teamName") /**/
+								+ (homeConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : " (" + conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")")
+						// + " (" +
+						// conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")";
+						;
 
 						log.info(gameDate + " -> " + gameId + " " + title);
 
@@ -182,7 +186,107 @@ public class DataProcessor {
 		return datesProcessed;
 	}
 
-	private static void loadDataFiles(String conferenceFile, /**/
+	private static String getAHomeTeamId(Element el) throws Exception {
+		String teamId = NOT_AVAILABLE;
+
+		try {
+			if (el == null || el.getElementsByTag("li") == null || el.getElementsByTag("li").last() == null) {
+				// log.warn("Cannot acquire a teamId");
+				return teamId;
+			}
+
+			Elements theseElements = el.getElementsByTag("li").last().getElementsByTag("a");
+			if (theseElements == null || theseElements.first() == null) {
+				// log.warn("Cannot acquire a teamId");
+				// log.info(theseElements.toString());
+				return teamId;
+			}
+
+			String teamUrl = theseElements.first().attr("href");
+			if (teamUrl == null) {
+				// log.warn("Cannot acquire a teamId");
+				// log.info(theseElements.first().toString());
+				return teamId;
+			}
+
+			teamId = Arrays.asList(teamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
+			if (teamId != null) {
+				return teamId;
+			} else {
+				// log.warn("Cannot acquire a teamId");
+				// log.info(teamUrl);
+				return NOT_AVAILABLE;
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	private static String getARoadTeamId(Element competitorsElement, Elements el) throws Exception {
+		String teamId = NOT_AVAILABLE;
+
+		try {
+			if (el == null || el.first() == null || el.first().getElementsByTag("a") == null) {
+				// log.warn("el: will not be able to assign team conferenceId and teamId");
+				// log.info(competitorsElement.toString());
+				return teamId;
+			}
+
+			Elements elAnchorElements = el.first().getElementsByTag("a");
+			if (elAnchorElements.first() == null || elAnchorElements.first().getElementsByTag("a") == null) {
+				// log.warn("elAnchorElements: will not be able to assign team conferenceId and
+				// teamId");
+				// log.info(el.toString());
+				return teamId;
+			}
+
+			String teamUrl = elAnchorElements.first().getElementsByTag("a").first().attr("href");
+			if (teamUrl == null) {
+				// log.warn("teamUrl: will not be able to assign team conferenceId and teamId");
+				// log.info(elAnchorElements.first().getElementsByTag("a").first().toString());
+				return null;
+			}
+
+			teamId = Arrays.asList(teamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
+			if (teamId == null) {
+				// log.warn("teamId extraction from teamUrl: will not be able to assign team
+				// conferenceId and teamId");
+				// log.info(teamUrl);
+				return NOT_AVAILABLE;
+			}
+
+			return teamId;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	private static String getAConferenceId(String teamId) throws Exception {
+		try {
+			if (teamId == null || teamId.trim().length() == 0) {
+				// log.warn("There is no teamId, therefore a conferenceId lookup is not
+				// possible");
+				return NOT_AVAILABLE;
+			}
+			Map<String, String> thisTeamMap = teamMap.get(Integer.valueOf(teamId));
+			if (thisTeamMap != null) {
+				String conferenceId = teamMap.get(Integer.valueOf(teamId)).get("conferenceId");
+				if (conferenceId != null) {
+					return conferenceId;
+				} else {
+					return NOT_AVAILABLE;
+				}
+			} else {
+				// log.warn("No entry in team map for teamId=" + teamId + " - cannot assign
+				// conferenceId");
+				return NOT_AVAILABLE;
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static void loadDataFiles(String conferenceFile, /**/
 			String teamFile, /**/
 			String playerFile /**/
 	// String scheduleFile/**/
@@ -229,10 +333,42 @@ public class DataProcessor {
 			throw e;
 		}
 
-		if (debug) {
-			retMap.forEach((key, map) -> log.info(key + " -> " + map.toString()));
-		}
+		// if (debug) {
+		// retMap.forEach((key, map) -> log.info(key + " -> " + map.toString()));
+		// }
 		return retMap;
+	}
+
+	public static Integer getId() {
+		return id;
+	}
+
+	public static String getSCOREBOARD_URL() {
+		return SCOREBOARD_URL;
+	}
+
+	public static String getBASE_URL() {
+		return BASE_URL;
+	}
+
+	public static Map<Integer, Map<String, String>> getConferenceMap() {
+		return conferenceMap;
+	}
+
+	public static Map<Integer, Map<String, String>> getTeamMap() {
+		return teamMap;
+	}
+
+	public static Map<Integer, Map<String, String>> getPlayerMap() {
+		return playerMap;
+	}
+
+	public static String getNow() {
+		return now;
+	}
+
+	public static Logger getLog() {
+		return log;
 	}
 
 }

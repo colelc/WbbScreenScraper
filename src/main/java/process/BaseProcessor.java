@@ -46,21 +46,21 @@ public class BaseProcessor {
 			BASE_OUTPUT_PATH = ConfigUtils.getBASE_OUTPUT_PATH();
 			BASE_OUTPUT_CHILD_DATA_PATH = ConfigUtils.getBASE_OUTPUT_CHILD_DATA_PATH();
 
-			conferenceOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.conferences");
-			teamOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.teams");
+			conferenceOutputFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.conferences");
+			teamOutputFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.teams");
 			playerOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.players");
 
 			gameStatOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.game.stats");
 			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
 			gamecastFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.gamecast.stats");
 
-			dateTrackerFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.dates.processed");
+			dateTrackerFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.dates.processed");
 			skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
 			skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
 
 			// loadConferencesTeamsPlayersSchedules();
 
-			skipDates = new HashSet<>();
+			// skipDates = new HashSet<>();
 			DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, conferenceOutputFile, teamOutputFile, playerOutputFile, gameStatOutputFile, playByPlayOutputFile, gamecastFile);
 		} catch (Exception e) {
 			throw e;
