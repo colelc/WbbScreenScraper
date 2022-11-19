@@ -260,6 +260,59 @@ public class CalendarUtils {
 		}
 	}
 
+	public static String parseUTCTime2(String in) throws Exception {
+
+		// in has format something like 6:00 PM
+		if (in == null || in.trim().length() == 0) {
+			log.warn("Cannot acquire gameTimeUTC");
+			return "";
+		}
+
+		try {
+			String[] tokens = in.split(" ");
+			if (tokens == null || tokens.length < 2) {
+				log.warn("Cannot tokenize date time");
+				return "";
+			}
+
+			String ampm = tokens[1];
+			if (ampm == null || (ampm.trim().toUpperCase().compareTo("PM") != 0 && ampm.trim().toUpperCase().compareTo("AM") != 0)) {
+				log.warn("Cannot identify AM/PM in game time");
+				return "";
+			}
+
+			String[] hhmmTokens = tokens[0].split(":");
+			if (hhmmTokens == null || hhmmTokens.length != 2) {
+				log.warn("Cannot acquire hh:mm for game time");
+				return "";
+			}
+			int militaryHH = 0;
+			int hour = Integer.valueOf(hhmmTokens[0]).intValue();
+			if (ampm.trim().toUpperCase().compareTo("PM") == 0) {
+				militaryHH = hour + 12;
+			} else {
+				militaryHH = hour;
+			}
+
+			String hh = null;
+			if (militaryHH < 10) {
+				hh = "0" + String.valueOf(militaryHH);
+			} else {
+				hh = String.valueOf(militaryHH);
+			}
+
+			String mm = hhmmTokens[1];
+
+			String HHMM = hh + ":" + mm;
+
+			LocalTime lt = LocalTime.parse(HHMM, DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH));
+			return lt.toString();
+		} catch (Exception e) {
+			throw e;
+		}
+
+	}
+
 //	public static void main(String[] args) {
 //		try {
 //			List<String> test = generateDates("20211101", "20220415");

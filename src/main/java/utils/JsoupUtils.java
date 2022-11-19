@@ -106,6 +106,7 @@ public class JsoupUtils {
 
 	public static Elements nullElementCheck(Elements elements, String name) {
 		if (elements == null || elements.first() == null) {
+			log.info(name + " -> there is no Element object for this name");
 			return null;
 		}
 		return elements;
