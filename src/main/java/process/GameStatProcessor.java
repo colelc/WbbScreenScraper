@@ -37,7 +37,7 @@ public class GameStatProcessor {
 			}
 
 			for (Element boxScoreTableEl : boxScoreTables) {
-				int maxDataIdx = GamestatElementProcessor.getMaxDataIdxValue(boxScoreTableEl);
+				int maxDataIdx = JsoupUtils.getMaxDataIdxValue(boxScoreTableEl);
 				if (maxDataIdx == -1) {
 					continue;
 				}

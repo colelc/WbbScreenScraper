@@ -1,9 +1,6 @@
 package process;
 
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.math.NumberUtils;
@@ -119,42 +116,4 @@ public class GamestatElementProcessor {
 		}
 	}
 
-	protected static int getMaxDataIdxValue(Element element) throws Exception {
-
-		try {
-			Elements idxEls = getIdxElements(element);
-			if (idxEls == null) {
-				log.warn("Cannot acquire idxElements");
-				return -1;
-			}
-
-			Set<Integer> values = new HashSet<>();
-			for (Element idxEl : idxEls) {
-				values.add(Integer.valueOf(idxEl.attr("data-idx")));
-			}
-
-			int max = values.stream()/**/
-					.mapToInt(v -> v)/**/
-					.filter(f -> f != 0 && f != 6)/**/
-					.max()/**/
-					.orElseThrow(NoSuchElementException::new);
-
-			return max;
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
-	protected static Elements getIdxElements(Element element) throws Exception {
-		try {
-			Elements idxEls = element.getElementsByAttribute("data-idx");
-			if (idxEls == null || idxEls.size() == 0) {
-				log.warn("Cannot acquire data-idx elements");
-				return null;
-			}
-			return idxEls;
-		} catch (Exception e) {
-			throw e;
-		}
-	}
 }

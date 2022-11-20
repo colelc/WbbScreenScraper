@@ -1,5 +1,9 @@
 package utils;
 
+import java.util.HashSet;
+import java.util.NoSuchElementException;
+import java.util.Set;
+
 import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -10,6 +14,45 @@ import https.service.HttpsClientService;
 
 public class JsoupUtils {
 	private static Logger log = Logger.getLogger(JsoupUtils.class);
+
+	public static int getMaxDataIdxValue(Element element) throws Exception {
+
+		try {
+			Elements idxEls = getIdxElements(element);
+			if (idxEls == null) {
+				log.warn("Cannot acquire idxElements");
+				return -1;
+			}
+
+			Set<Integer> values = new HashSet<>();
+			for (Element idxEl : idxEls) {
+				values.add(Integer.valueOf(idxEl.attr("data-idx")));
+			}
+
+			int max = values.stream()/**/
+					.mapToInt(v -> v)/**/
+					.filter(f -> f != 0 && f != 6)/**/
+					.max()/**/
+					.orElseThrow(NoSuchElementException::new);
+
+			return max;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static Elements getIdxElements(Element element) throws Exception {
+		try {
+			Elements idxEls = element.getElementsByAttribute("data-idx");
+			if (idxEls == null || idxEls.size() == 0) {
+				log.warn("Cannot acquire data-idx elements");
+				return null;
+			}
+			return idxEls;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
 
 	public static String extractionByAttributeAndValue(Element element, String attribute, String value) throws Exception {
 		try {

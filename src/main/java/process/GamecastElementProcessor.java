@@ -245,7 +245,7 @@ public class GamecastElementProcessor {
 			}
 
 			Elements els = networkCoverageElements.first().getElementsByTag("span");
-			if (els == null || els.first() == null) {
+			if (els == null || els.first() == null || els.size() < 2) { // don't want first = last
 				log.warn("Cannot acquire network coverages");
 				return "";
 			}
