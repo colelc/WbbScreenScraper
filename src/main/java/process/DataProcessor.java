@@ -179,7 +179,6 @@ public class DataProcessor {
 			} catch (Exception e) {
 				throw e;
 			}
-
 			datesProcessed.add(gameDate);
 		}
 
@@ -304,7 +303,7 @@ public class DataProcessor {
 		return;
 	}
 
-	private static Map<Integer, Map<String, String>> fileDataToMap(List<String> dataList, boolean debug) throws Exception {
+	protected static Map<Integer, Map<String, String>> fileDataToMap(List<String> dataList, boolean debug) throws Exception {
 
 		Map<Integer, Map<String, String>> retMap = new HashMap<>();
 
@@ -365,10 +364,6 @@ public class DataProcessor {
 
 	public static String getNow() {
 		return now;
-	}
-
-	public static Logger getLog() {
-		return log;
 	}
 
 }

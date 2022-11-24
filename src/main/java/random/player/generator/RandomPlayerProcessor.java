@@ -101,7 +101,7 @@ public class RandomPlayerProcessor {
 		}
 	}
 
-	private static Integer generateRandomNumber(int maxSize) throws Exception {
+	public static Integer generateRandomNumber(int maxSize) throws Exception {
 		try {
 			Random random = new Random();
 			int value = random.ints(0, maxSize - 1).findAny().getAsInt();

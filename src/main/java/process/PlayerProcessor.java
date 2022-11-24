@@ -10,7 +10,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import utils.ConfigUtils;
 import utils.JsoupUtils;
 import utils.StringUtils;
 
@@ -18,7 +17,7 @@ public class PlayerProcessor {
 
 	private static Logger log = Logger.getLogger(PlayerProcessor.class);
 
-	public static void generatePlayerFile(BufferedWriter playerWriter, String teamId, Element rosterAnchor) throws Exception {
+	public static void generatePlayerFile(BufferedWriter playerWriter, String teamId, Document doc) throws Exception {
 
 		String playerId = null;
 		String playerName = null;
@@ -35,7 +34,9 @@ public class PlayerProcessor {
 		String playerUrl = null;
 
 		try {
-			Document doc = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() + rosterAnchor.attr("href"));
+			// Document doc = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() +
+			// url);// .attr("href"));
+			// Document doc = JsoupUtils.jsoupExtraction(url);
 
 			if (doc == null) {
 				log.error("No content.... exiting");

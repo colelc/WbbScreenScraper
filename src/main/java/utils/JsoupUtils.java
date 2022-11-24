@@ -54,6 +54,31 @@ public class JsoupUtils {
 		}
 	}
 
+	public static int getMaxIdxElementValueInDoc(Document doc) throws Exception {
+		try {
+			Elements idxEls = doc.getElementsByAttribute("data-idx");
+			if (idxEls == null) {
+				log.warn("Cannot acquire idxElements");
+				return -1;
+			}
+
+			Set<Integer> values = new HashSet<>();
+			for (Element idxEl : idxEls) {
+				values.add(Integer.valueOf(idxEl.attr("data-idx")));
+			}
+
+			int max = values.stream()/**/
+					.mapToInt(v -> v)/**/
+					// .filter(f -> f != 0 && f != 6)/**/
+					.max()/**/
+					.orElseThrow(NoSuchElementException::new);
+
+			return max;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
 	public static String extractionByAttributeAndValue(Element element, String attribute, String value) throws Exception {
 		try {
 			if (JsoupUtils.filterByAttributeAndValue(element, attribute, value)) {

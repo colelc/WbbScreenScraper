@@ -154,7 +154,8 @@ public class BaseProcessor {
 									}
 
 									/** String playerOutputFile = */
-									PlayerProcessor.generatePlayerFile(playerWriter, teamId, optRosterAnchor.get());
+									Document document = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() + optRosterAnchor.get().attr("href"));
+									PlayerProcessor.generatePlayerFile(playerWriter, teamId, document);
 								}
 							}
 						}

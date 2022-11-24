@@ -1,7 +1,7 @@
 .classpath
 .project
 .settings/
-WbbScreenScraper*.log
+WbbScreenScraper*.log*
 modules/
 output/
 
