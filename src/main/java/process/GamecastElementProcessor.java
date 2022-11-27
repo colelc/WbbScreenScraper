@@ -142,10 +142,10 @@ public class GamecastElementProcessor {
 		String venueName = "";
 
 		try {
-			Elements els = gameInfoElement.getElementsByAttributeValue("class", "n6 clr-gray-03 GameInfo__Location__Name");
+			Elements els = gameInfoElement.getElementsByClass("GameInfo__Location__Name");
 			if (els == null || els.first() == null) {
 				// try another tag
-				els = gameInfoElement.getElementsByAttributeValue("class", "n6 clr-gray-03 GameInfo__Location__Name--noImg");
+				els = gameInfoElement.getElementsByClass("GameInfo__Location__Name--noImg");
 				if (els == null || els.first() == null) {
 					log.warn("Cannot acquire venue name");
 					return "";
@@ -194,8 +194,14 @@ public class GamecastElementProcessor {
 		try {
 			Elements els = gameInfoElement.getElementsByAttributeValue("class", "Attendance__Capacity h10");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire venue capacity");
-				return "";
+				els = gameInfoElement.getElementsByClass("Attendance__Capacity");
+				if (els == null || els.first() == null) {
+					log.warn("Cannot acquire venue capacity");
+					return "";
+				}
+
+				capacity = els.first().text().replace("Capacity:", "").replace(",", "").trim();
+				return capacity;
 			}
 
 			Element capacityElement = els.first();
@@ -257,6 +263,68 @@ public class GamecastElementProcessor {
 			throw e;
 		}
 		return networkCoverages;
+	}
+
+	protected static String extractGameDate(Element gameInfoElement) throws Exception {
+		if (gameInfoElement == null) {
+			log.warn("There is no game Info element");
+			return null;
+		}
+
+		String gameDate = "";
+
+		try {
+			Element dtElement = gameInfoElement.getElementsByAttributeValue("class", "n8 GameInfo__Meta").first();
+
+			Elements els = dtElement.getElementsByTag("span");
+			if (els == null || els.first() == null) {
+				log.warn("Cannot acquire game date");
+				return "";
+			}
+
+			Element gameDateEl = els.last();
+			List<String> dateElements = Arrays.asList(gameDateEl.text().split("\\,")).stream().filter(f -> !f.contains(":")).collect(Collectors.toList());
+			if (dateElements == null || dateElements.size() != 2) {
+				log.warn("Cannot acquire date elements needed to calculate game date");
+				return null;
+			}
+
+			List<String> monthDayTokens = Arrays.asList(dateElements.get(0).split(" ")).stream().filter(f -> f.trim().length() > 0).collect(Collectors.toList());
+			if (monthDayTokens == null || monthDayTokens.size() != 2) {
+				log.warn("Cannot parse month and day tokens for calculating game date");
+				return null;
+			}
+
+			int mm = CalendarUtils.computeMonth(monthDayTokens.get(0)).getValue();
+			String month = "";
+			if (mm < 10) {
+				month = "0" + String.valueOf(mm);
+			} else {
+				month = String.valueOf(mm);
+			}
+
+			int dd = Integer.valueOf(monthDayTokens.get(1)).intValue();
+			String day = "";
+			if (dd < 10) {
+				day = "0" + String.valueOf(dd);
+			} else {
+				day = String.valueOf(dd);
+			}
+
+			String year = dateElements.get(1);
+			gameDate = year + month + day;
+//			Optional<String> opt = Arrays.asList(gameDateEl.text().split(",")).stream().findFirst();
+//			if (opt.isEmpty()) {
+//				log.warn("Cannot acquire game time from game time element");
+//				return "";
+//			}
+
+//			gameDate = CalendarUtils.parseUTCTime2(opt.get());
+
+		} catch (Exception e) {
+			throw e;
+		}
+		return gameDate;
 	}
 
 	protected static String extractGametime(Element gameInfoElement) throws Exception {

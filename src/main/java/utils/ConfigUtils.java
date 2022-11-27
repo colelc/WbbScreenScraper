@@ -13,6 +13,7 @@ public class ConfigUtils {
 	private static String BASE_OUTPUT_PATH;
 	private static String BASE_OUTPUT_CHILD_DATA_PATH;
 	private static String ESPN_HOME;
+	private static String SINGLE_GAMECAST_URL;
 
 	static {
 		try {
@@ -21,6 +22,7 @@ public class ConfigUtils {
 			BASE_OUTPUT_PATH = getProperty("base.output.file.path");
 			BASE_OUTPUT_CHILD_DATA_PATH = getProperty("base.output.child.data.path");
 			ESPN_HOME = getProperty("espn.com.home.page");
+			SINGLE_GAMECAST_URL = getProperty("single.gamecast.url");
 
 		} catch (Exception e) {
 			log.error(e.getMessage());
@@ -81,5 +83,9 @@ public class ConfigUtils {
 
 	public static String getESPN_HOME() {
 		return ESPN_HOME;
+	}
+
+	public static String getSINGLE_GAMECAST_URL() {
+		return SINGLE_GAMECAST_URL;
 	}
 }

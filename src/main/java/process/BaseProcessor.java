@@ -54,14 +54,20 @@ public class BaseProcessor {
 			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
 			gamecastFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.gamecast.stats");
 
-			dateTrackerFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.dates.processed");
-			skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
-			skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
-
 			// loadConferencesTeamsPlayersSchedules();
+			String singleGamecastUrl = ConfigUtils.getSINGLE_GAMECAST_URL();
+			singleGamecastUrl = singleGamecastUrl == null || singleGamecastUrl.trim().length() == 0 ? null : singleGamecastUrl;
 
-			// skipDates = new HashSet<>();
-			DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, conferenceOutputFile, teamOutputFile, playerOutputFile, gameStatOutputFile, playByPlayOutputFile, gamecastFile);
+			if (singleGamecastUrl == null) {
+				dateTrackerFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.dates.processed");
+				skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
+				skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
+				DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, conferenceOutputFile, teamOutputFile, playerOutputFile, gameStatOutputFile, playByPlayOutputFile, gamecastFile);
+			} else {
+				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile/* , scheduleFile */);
+				GamecastProcessor.generateGamecastDataSingleUrl(singleGamecastUrl);
+			}
+
 		} catch (Exception e) {
 			throw e;
 		}

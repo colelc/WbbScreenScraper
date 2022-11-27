@@ -150,23 +150,27 @@ public class CalendarUtils {
 		}
 	}
 
-	private static Month computeMonth(String in) throws Exception {
+	public static Month computeMonth(String in) throws Exception {
 		try {
 			Month month = null;
 
 			switch (in) {
+			case "January":
 			case "Jan":
 			case "01":
 				month = Month.JANUARY;
 				break;
+			case "February":
 			case "Feb":
 			case "02":
 				month = Month.FEBRUARY;
 				break;
+			case "March":
 			case "Mar":
 			case "03":
 				month = Month.MARCH;
 				break;
+			case "April":
 			case "Apr":
 			case "04":
 				month = Month.APRIL;
@@ -175,30 +179,37 @@ public class CalendarUtils {
 			case "05":
 				month = Month.MAY;
 				break;
+			case "June":
 			case "Jun":
 			case "06":
 				month = Month.JUNE;
 				break;
+			case "July":
 			case "Jul":
 			case "07":
 				month = Month.JULY;
 				break;
+			case "August":
 			case "Aug":
 			case "08":
 				month = Month.AUGUST;
 				break;
+			case "September":
 			case "Sep":
 			case "09":
 				month = Month.SEPTEMBER;
 				break;
+			case "October":
 			case "Oct":
 			case "10":
 				month = Month.OCTOBER;
 				break;
+			case "November":
 			case "Nov":
 			case "11":
 				month = Month.NOVEMBER;
 				break;
+			case "December":
 			case "Dec":
 			case "12":
 				month = Month.DECEMBER;
