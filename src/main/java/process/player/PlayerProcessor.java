@@ -1,4 +1,4 @@
-package process;
+package process.player;
 
 import java.io.BufferedWriter;
 import java.util.Arrays;

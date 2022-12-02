@@ -61,12 +61,13 @@ public class DataProcessor {
 			String playerFile, /**/
 			String gameStatFile, /**/
 			String playByPlayFile, /**/
-			String gamecastFile) throws Exception {
+			String gamecastFile, /**/
+			String cumulativeStatsFile) throws Exception {
 
 		try {
-			loadDataFiles(conferenceFile, teamFile, playerFile/* , scheduleFile */);
+			loadDataFiles(conferenceFile, teamFile, playerFile);
 
-			Set<String> datesProcessed = extractGameData(skipDates, gameStatFile, playByPlayFile, gamecastFile);
+			Set<String> datesProcessed = extractGameData(skipDates, gameStatFile, playByPlayFile, gamecastFile, cumulativeStatsFile);
 
 			// capture the dates just processed
 			FileUtils.writeAllLines(dateTrackerFile, datesProcessed, skipDates.size(), true);
@@ -77,7 +78,8 @@ public class DataProcessor {
 		return;
 	}
 
-	private static Set<String> extractGameData(Set<String> skipDates, String gameStatOutputFile, String playByPlayOutputFile, String gamecastOutputFile) throws Exception {
+	private static Set<String> extractGameData(Set<String> skipDates, /**/
+			String gameStatOutputFile, String playByPlayOutputFile, String gamecastOutputFile, String cumulativeStatsFile) throws Exception {
 
 		Set<String> datesProcessed = new HashSet<>();
 		String gameId = null;
@@ -104,7 +106,9 @@ public class DataProcessor {
 					/**/
 					BufferedWriter playByPlayWriter = new BufferedWriter(new FileWriter(playByPlayOutputFile + "_" + gameDate, false));
 					/**/
-					BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastOutputFile + "_" + gameDate, false))) {
+					BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastOutputFile + "_" + gameDate, false));
+					/**/
+					BufferedWriter cumulativeWriter = new BufferedWriter(new FileWriter(cumulativeStatsFile + "_" + gameDate, false))) {
 
 				log.info(gameDate + " -> " + SCOREBOARD_URL + gameDate);
 
@@ -171,9 +175,14 @@ public class DataProcessor {
 								roadConferenceId, /**/
 								gamecastWriter);
 
-						GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
+						Document gameStatDoc = GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
 
-						PlayByPlayProcessor.processPlayByPlay(playbyplayUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
+						boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
+
+						if (data) {
+							CumulativeStatsProcessor.generateCumulativeStats(gameStatDoc, gameId, gameDate, cumulativeWriter, /**/
+									roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
+						}
 					}
 				}
 			} catch (Exception e) {

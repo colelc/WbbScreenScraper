@@ -299,7 +299,7 @@ public class CalendarUtils {
 			}
 			int militaryHH = 0;
 			int hour = Integer.valueOf(hhmmTokens[0]).intValue();
-			if (ampm.trim().toUpperCase().compareTo("PM") == 0) {
+			if (ampm.trim().toUpperCase().compareTo("PM") == 0 && hour < 12) {
 				militaryHH = hour + 12;
 			} else {
 				militaryHH = hour;

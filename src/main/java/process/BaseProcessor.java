@@ -17,6 +17,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import process.player.PlayerProcessor;
 import utils.ConfigUtils;
 import utils.FileUtils;
 import utils.JsoupUtils;
@@ -35,6 +36,7 @@ public class BaseProcessor {
 	private static String gameStatOutputFile;
 	private static String playByPlayOutputFile;
 	private static String gamecastFile;
+	private static String cumulativeStatsFile;
 
 	private static Set<String> skipDates;
 
@@ -54,6 +56,8 @@ public class BaseProcessor {
 			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
 			gamecastFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.gamecast.stats");
 
+			cumulativeStatsFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.cumulative.stats");
+
 			// loadConferencesTeamsPlayersSchedules();
 			String singleGamecastUrl = ConfigUtils.getSINGLE_GAMECAST_URL();
 			singleGamecastUrl = singleGamecastUrl == null || singleGamecastUrl.trim().length() == 0 ? null : singleGamecastUrl;
@@ -62,10 +66,14 @@ public class BaseProcessor {
 				dateTrackerFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.dates.processed");
 				skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
 				skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
-				DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, conferenceOutputFile, teamOutputFile, playerOutputFile, gameStatOutputFile, playByPlayOutputFile, gamecastFile);
+				DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, /**/
+						conferenceOutputFile, teamOutputFile, playerOutputFile, /**/
+						gameStatOutputFile, playByPlayOutputFile, gamecastFile, /**/
+						cumulativeStatsFile);
 			} else {
 				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile/* , scheduleFile */);
 				GamecastProcessor.generateGamecastDataSingleUrl(singleGamecastUrl);
+				CumulativeStatsProcessor.generateCumulativeStatsSingleGame(singleGamecastUrl);
 			}
 
 		} catch (Exception e) {
@@ -76,7 +84,7 @@ public class BaseProcessor {
 	private static Map<String, String> loadConferencesTeamsPlayersSchedules() throws Exception {
 		try {
 			Map<String, String> conferenceUrlMap = new HashMap<>(generateConferenceUrlMap());
-			generateConferenceTeamPlayerScheduleDataFiles(conferenceUrlMap);
+			generateConferenceTeamPlayerDataFiles(conferenceUrlMap);
 			return conferenceUrlMap;
 		} catch (Exception e) {
 			throw e;
@@ -101,7 +109,7 @@ public class BaseProcessor {
 		return conferenceUrlMap;
 	}
 
-	private static String generateConferenceTeamPlayerScheduleDataFiles(Map<String, String> conferenceUrlMap) throws Exception {
+	private static String generateConferenceTeamPlayerDataFiles(Map<String, String> conferenceUrlMap) throws Exception {
 
 		try (BufferedWriter conferenceWriter = new BufferedWriter(new FileWriter(conferenceOutputFile, false)); /**/
 				BufferedWriter teamWriter = new BufferedWriter(new FileWriter(teamOutputFile, false)); /**/

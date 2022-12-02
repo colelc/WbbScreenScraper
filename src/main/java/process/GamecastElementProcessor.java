@@ -265,7 +265,7 @@ public class GamecastElementProcessor {
 		return networkCoverages;
 	}
 
-	protected static String extractGameDate(Element gameInfoElement) throws Exception {
+	public static String extractGameDate(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return null;

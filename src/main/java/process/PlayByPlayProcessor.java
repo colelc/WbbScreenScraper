@@ -24,7 +24,7 @@ public class PlayByPlayProcessor {
 
 	private static Logger log = Logger.getLogger(PlayByPlayProcessor.class);
 
-	public static void processPlayByPlay(String url, /**/
+	public static boolean processPlayByPlay(String url, /**/
 			String gameId, /**/
 			String gameDate, /**/
 			String homeTeamId, /**/
@@ -39,7 +39,7 @@ public class PlayByPlayProcessor {
 			// log.info(doc.toString());
 			if (doc == null) {
 				log.warn("No html data for this play-by-play request");
-				return;
+				return false;
 			}
 
 			Elements pEls = doc.select("p");
@@ -47,21 +47,21 @@ public class PlayByPlayProcessor {
 				Optional<Element> noPlayOpt = pEls.stream().filter(f -> f.text().compareTo("No Plays Available") == 0).findFirst();
 				if (noPlayOpt.isPresent()) {
 					log.info("There is no play-by-play data for this game -> " + url);
-					return;
+					return false;
 				}
 			}
 
 			Elements scripts = doc.select("script");
 			if (scripts.size() < 4) {
 				log.warn("Cannot acquire play-by-play data from script elements");
-				return;
+				return false;
 			}
 
 			String scriptData = scripts.get(3).data();
 			int playGrpsIx = scriptData.indexOf("\"playGrps\":[");
 			if (playGrpsIx == -1) {
 				log.warn("Unable to acquire playGrps data");
-				return;
+				return false;
 			}
 
 			List<String> quarters = Arrays.asList(scriptData.substring(playGrpsIx + 12).split("]")).stream().limit(4l).collect(Collectors.toList());
@@ -77,7 +77,7 @@ public class PlayByPlayProcessor {
 					JsonElement play = playbyplayIterator.next();
 					if (!play.isJsonObject()) {
 						log.warn("Issue with play-by-play iteration");
-						return;
+						return false;
 					}
 
 					JsonObject playObj = play.getAsJsonObject();
@@ -111,7 +111,7 @@ public class PlayByPlayProcessor {
 
 				}
 			}
-
+			return true;
 		} catch (Exception e) {
 			throw e;
 		}

@@ -13,7 +13,7 @@ public class GameStatProcessor {
 
 	private static Logger log = Logger.getLogger(GameStatProcessor.class);
 
-	public static void processGameStats(String url, /**/
+	public static Document processGameStats(String url, /**/
 			String gameId, /**/
 			String gameDate, /**/
 			String homeTeamId, /**/
@@ -26,14 +26,14 @@ public class GameStatProcessor {
 			Document doc = JsoupUtils.jsoupExtraction(url);
 			if (doc == null) {
 				log.warn("No html data for this box score request");
-				return;
+				return null;
 			}
 
 			Elements boxScoreTables = doc.getElementsByAttributeValue("class", "Wrapper");
 
 			if (boxScoreTables == null || (boxScoreTables.first() == null && boxScoreTables.last() == null)) {
 				log.warn("No box score for this game - perhaps it was cancelled or postponed?");
-				return;
+				return doc;
 			}
 
 			for (Element boxScoreTableEl : boxScoreTables) {
@@ -130,6 +130,8 @@ public class GameStatProcessor {
 
 				}
 			}
+
+			return doc;
 		} catch (Exception e) {
 			throw e;
 		}
