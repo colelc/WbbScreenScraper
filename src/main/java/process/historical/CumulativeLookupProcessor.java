@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -59,43 +60,100 @@ public class CumulativeLookupProcessor {
 
 	public static void processGameIds() throws Exception {
 
-		try {
-			for (String gameDate : gamecastsMap.keySet()) {
-				String fileLocation = CUMULATIVE_FILE_OUTPUT_LOCATION + "_" + gameDate;
-				log.info(fileLocation);
+		for (String gameDate : gamecastsMap.keySet()) {
 
-				try (BufferedWriter writer = new BufferedWriter(new FileWriter(CUMULATIVE_FILE_OUTPUT_LOCATION + "_" + gameDate, false))) {
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(CUMULATIVE_FILE_OUTPUT_LOCATION + "_" + gameDate, false))) {
 
-					List<String> dataForThisDate = gamecastsMap.get(gameDate);
-					for (String dataForThisGame : dataForThisDate) {
-						String gameId = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains("gameId")).findFirst().get().split("=")[1];
-						String boxscoreUrl = BASE_URL + "boxscore/_/gameId/" + gameId;
-						log.info("Processing: " + boxscoreUrl);
+				List<String> dataForThisDate = gamecastsMap.get(gameDate);
 
-						Document doc = JsoupUtils.jsoupExtraction(boxscoreUrl);
-						if (doc == null) {
-							log.warn("No html data for this box score request");
-							continue;
-						}
+				for (String dataForThisGame : dataForThisDate) {
+					String gameId = extractId(dataForThisGame, "gameId");
+					String boxscoreUrl = BASE_URL + "boxscore/_/gameId/" + gameId;
+					log.info("Processing: " + gameDate + " -> " + boxscoreUrl);
 
-						String roadTeamId = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains("roadTeamId")).findFirst().get().split("=")[1];
-						String roadConferenceId = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains("roadTeamConferenceId")).findFirst().get().split("=")[1];
-						String homeTeamId = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains("homeTeamId")).findFirst().get().split("=")[1];
-						String homeConferenceId = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains("homeTeamConferenceId")).findFirst().get().split("=")[1];
+					String roadTeamId = extractId(dataForThisGame, "roadTeamId");
+					String roadConferenceId = extractId(dataForThisGame, "roadTeamConferenceId");
+					String homeTeamId = extractId(dataForThisGame, "homeTeamId");
+					String homeConferenceId = extractId(dataForThisGame, "homeTeamConferenceId");
 
-						CumulativeStatsProcessor.generateCumulativeStats(doc, gameId, gameDate, writer, /**/
-								roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
-					}
-				} catch (Exception e) {
-					throw e;
+					Thread.sleep(500l);
+					acquire(boxscoreUrl, gameDate, gameId, roadTeamId, roadConferenceId, homeTeamId, homeConferenceId, writer);
 				}
-
+			} catch (Exception e) {
+				throw e;
 			}
-		} catch (Exception e) {
-			throw e;
+
 		}
 
 		return;
+	}
+
+	private static void acquire(String boxscoreUrl, String gameDate, String gameId, /**/
+			String roadTeamId, String roadConferenceId, String homeTeamId, String homeConferenceId, /**/
+			BufferedWriter writer) throws Exception {
+
+		boolean noDoc = true;
+		int tries = 0;
+		int MAX_TRIES = 10;
+
+		while (noDoc)
+			try {
+				++tries;
+				if (tries > MAX_TRIES) {
+					log.warn("We have tried 10 times and cannot acquire this document, for game: " + boxscoreUrl);
+					return;
+				}
+
+				Document doc = getDocument(boxscoreUrl);
+				if (doc == null) {
+					log.warn("Cannot acquire document for " + boxscoreUrl);
+				}
+
+				noDoc = false;
+
+				CumulativeStatsProcessor.generateCumulativeStats(doc, gameId, gameDate, writer, /**/
+						roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
+
+			} catch (Exception e) {
+				log.error(e.getMessage());
+				Thread.sleep(30000l);
+			}
+	}
+
+	private static String extractId(String dataForThisGame, String targetKey) throws Exception {
+		try {
+			Optional<String> kvPair = Arrays.asList(dataForThisGame.split("\\,")).stream().filter(f -> f.contains(targetKey)).findFirst();// .get().split("=")[1];
+			if (kvPair.isPresent()) {
+				String[] tokens = kvPair.get().split("=");
+				if (tokens == null || tokens.length != 2) {
+					if (tokens != null) {
+						log.warn(tokens[0] + " -> no value available");
+					} else {
+						log.warn("Null tokens - cannot extract an id");
+					}
+					return "";
+				}
+				return tokens[1];
+			}
+
+			log.warn("Cannot acquire an id for key: " + targetKey);
+			return "";
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	private static Document getDocument(String boxscoreUrl) throws Exception {
+		try {
+			Document doc = JsoupUtils.jsoupExtraction(boxscoreUrl);
+			if (doc == null) {
+				log.warn("No html data for this box score request");
+				return null;
+			}
+			return doc;
+		} catch (Exception e) {
+			throw e;
+		}
 	}
 
 	public static void collectGamecastData() throws Exception {

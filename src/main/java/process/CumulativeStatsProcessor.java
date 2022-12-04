@@ -118,6 +118,11 @@ public class CumulativeStatsProcessor {
 				return false;
 			}
 
+			if (maxDataIdx == 1) {
+				log.warn("There appears to be no data: maxDataIdx has value = 1");
+				return false;
+			}
+
 			Elements trElements = boxScoreTableEl.getElementsByAttributeValue("data-idx", String.valueOf(maxDataIdx - 1));
 			if (trElements == null || trElements.size() == 0) {
 				log.warn("Cannot acquire elements for data-idx = " + String.valueOf(maxDataIdx - 1));
@@ -229,7 +234,7 @@ public class CumulativeStatsProcessor {
 						+ ",[pointsScored]=" + awayPointsScored/**/
 				;
 				writer.write(data + "\n");
-				log.info(data);
+				// log.info(data);
 			} else {
 				String data = "[id]=" + idValue /**/
 						+ ",[gameId]=" + gameId/**/
@@ -254,7 +259,7 @@ public class CumulativeStatsProcessor {
 						+ ",[pointsScored]=" + homePointsScored/**/
 				;
 				writer.write(data + "\n");
-				log.info(data);
+				// log.info(data);
 			}
 		} catch (Exception e) {
 			throw e;
