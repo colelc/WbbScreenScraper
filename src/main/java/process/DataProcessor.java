@@ -177,7 +177,8 @@ public class DataProcessor {
 
 						Document gameStatDoc = GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
 
-						boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
+						Document playbyplayDoc = PlayByPlayProcessor.getDocument(playbyplayUrl);
+						boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayDoc, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
 
 						if (data) {
 							CumulativeStatsProcessor.generateCumulativeStats(gameStatDoc, gameId, gameDate, cumulativeWriter, /**/
@@ -333,6 +334,10 @@ public class DataProcessor {
 						} else {
 							map.put(key, value);
 						}
+					} else if (tokens.length == 1) {
+						String key = tokens[0].trim();
+						String value = "";
+						map.put(key, value);
 					}
 				});
 				retMap.put(id, map);

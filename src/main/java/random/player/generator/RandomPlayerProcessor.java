@@ -14,7 +14,7 @@ import utils.ConfigUtils;
 public class RandomPlayerProcessor {
 
 	private static String BASE_OUTPUT_PATH;
-	private static String BASE_OUTPUT_CHILD_DATA_PATH;
+	private static String SEASON;
 
 	private static String conferenceFile;
 	private static String teamFile;
@@ -24,14 +24,13 @@ public class RandomPlayerProcessor {
 
 	public static void go() throws Exception {
 		try {
-			BASE_OUTPUT_PATH = ConfigUtils.getBASE_OUTPUT_PATH();
-			BASE_OUTPUT_CHILD_DATA_PATH = ConfigUtils.getBASE_OUTPUT_CHILD_DATA_PATH();
+			BASE_OUTPUT_PATH = ConfigUtils.getProperty("base.output.file.path");
+			SEASON = ConfigUtils.getProperty("season");
+			conferenceFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.conferences");
+			teamFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.teams");
+			playerFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.players");
 
-			conferenceFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.conferences");
-			teamFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.teams");
-			playerFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.players");
-
-			DataProcessor.loadDataFiles(conferenceFile, teamFile, playerFile/* , scheduleFile */);
+			DataProcessor.loadDataFiles(conferenceFile, teamFile, playerFile);
 			getTheRandomPlayer();
 		} catch (Exception e) {
 			throw e;

@@ -103,17 +103,13 @@ public class GamecastProcessor {
 			}
 
 			String gameId = Arrays.asList(gamecastUrl.split("/")).stream().reduce((first, second) -> second).get();
-
-			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"), "section.GameInfo");// .first();
-			if (gameInfoElements == null || gameInfoElements.first() == null) {
-				log.info(gameId + ": There is no game information element");
+			String gameDate = GamecastElementProcessor.extractGameDate(doc, gameId);
+			if (gameDate == null) {
+				log.warn("Cannot acquire game date for gameId -> " + gameId);
 				return;
 			}
 
-			Element gameInfoElement = gameInfoElements.first();
-			String gameDate = GamecastElementProcessor.extractGameDate(gameInfoElement);
-
-			String homeTeamId = acquireTeamId(gamecastUrl, doc, "Gamestrip__Team--home");
+			String homeTeamId = acquireTeamId(doc, "Gamestrip__Team--home");
 			if (homeTeamId == null || homeTeamId.trim().length() == 0) {
 				log.warn(gamecastUrl + " -> Cannot acquire the home team id from data-clubhouse-uid attribute value");
 				return;
@@ -122,7 +118,7 @@ public class GamecastProcessor {
 			String homeTeamConferenceId = acquireTeamMapValue(homeTeamId, "conferenceId");
 			String homeTeamName = acquireTeamMapValue(homeTeamId, "teamName");
 
-			String roadTeamId = acquireTeamId(gamecastUrl, doc, "Gamestrip__Team--away");
+			String roadTeamId = acquireTeamId(doc, "Gamestrip__Team--away");
 			if (roadTeamId == null || roadTeamId.trim().length() == 0) {
 				log.warn(gamecastUrl + " -> Cannot acquire the road team id from data-clubhouse-uid attribute value");
 				return;
@@ -137,17 +133,15 @@ public class GamecastProcessor {
 							+ (roadTeamConferenceId.compareTo("") == 0 ? "NA" : DataProcessor.getConferenceMap().get(Integer.valueOf(roadTeamConferenceId)).get("shortName") + ")")/**/
 							+ " at " /**/
 							+ (homeTeamId.compareTo("") == 0 ? "NA" : homeTeamName)/**/
-							+ (homeTeamConferenceId.compareTo("") == 0 ? "NA" : " (" + DataProcessor.getConferenceMap().get(Integer.valueOf(homeTeamConferenceId)).get("shortName") + ")")
-			// +
-			// DataProcessor.getConferenceMap().get(Integer.valueOf(homeTeamConferenceId)).get("shortName")
-			// + ")";
-			;
+							+ (homeTeamConferenceId.compareTo("") == 0 ? "NA" : " (" + DataProcessor.getConferenceMap().get(Integer.valueOf(homeTeamConferenceId)).get("shortName") + ")");
 
 			log.info(title);
-			// log.info(homeTeamElements.toString());
 
-			// log.info(doc.toString());
-			// log.info(gameInfoElement.toString());
+			Element gameInfoElement = GamecastElementProcessor.extractGameInfoElement(doc, gameId);
+			if (gameInfoElement == null) {
+				log.warn("Cannot acquire game info element for gameId -> " + gameId);
+				return;
+			}
 
 			String gameTimeUtc = GamecastElementProcessor.extractGametime(gameInfoElement);
 			String networkCoverage = GamecastElementProcessor.extractNetworkCoverages(gameInfoElement);
@@ -186,7 +180,7 @@ public class GamecastProcessor {
 		}
 	}
 
-	public static String acquireTeamId(String gamecastUrl, Document doc, String className) throws Exception {
+	public static String acquireTeamId(Document doc, String className) throws Exception {
 
 		try {
 			Elements teamElements = doc.getElementsByClass(className);

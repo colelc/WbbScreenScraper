@@ -124,6 +124,17 @@ public class JsoupUtils {
 		}
 	}
 
+	public static String getHttpDoc(String url) throws Exception {
+		try {
+			url = url.contains("http://") ? url.replace("http://", "https://") : url;
+			String html = FileUtils.streamHttpsUrlConnection(HttpsClientService.getHttpsURLConnection(url), false);
+
+			return html;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
 	public static Document jsoupExtraction(String url) throws Exception {
 		try {
 			url = url.contains("http://") ? url.replace("http://", "https://") : url;
@@ -166,7 +177,7 @@ public class JsoupUtils {
 
 	private static boolean contentCheck(String html, String url) {
 		if (!StringUtils.isPopulated(html)) {
-			log.warn(url + " : no HTML text obtained - perhaps a redirect took place ?");
+			// log.warn(url + " : no HTML text obtained - perhaps a redirect took place ?");
 			return false;
 		}
 		return true;

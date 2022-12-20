@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,7 @@ public class PlayByPlayElementProcessor {
 		}
 	}
 
-	protected static List<Integer> extractPlayerId(JsonObject playObj, Map<Integer, Map<String, String>> playerMap) throws Exception {
+	protected static List<Integer> extractPlayerIdsForThisPlay(JsonObject playObj, Map<Integer, Map<String, String>> playerMap) throws Exception {
 
 		List<Integer> retList = new ArrayList<>();
 
@@ -55,7 +56,7 @@ public class PlayByPlayElementProcessor {
 						return retList;
 					}
 
-					Integer playerId = parse(textTokens, playerMap);
+					Integer playerId = parsePlayerId(textTokens, playerMap);
 					if (playerId == null) {
 						;// log.warn("Cannot acquire playerId from tokens -> " + textTokens.toString() +
 							// ", and sentence is -> " + sentence);
@@ -72,17 +73,35 @@ public class PlayByPlayElementProcessor {
 		return retList;
 	}
 
-	private static Integer parse(List<String> textTokens, Map<Integer, Map<String, String>> playerMap) throws Exception {
+	private static Integer parsePlayerId(List<String> textTokens, Map<Integer, Map<String, String>> playerMap) throws Exception {
 		try {
-			Optional<Integer> opt = playerMap.entrySet().stream()/**/
-					.filter(f -> f.getValue().get("playerName").compareTo(textTokens.stream().collect(Collectors.joining(" "))) == 0)/**/
-					.map(m -> m.getKey())/**/
+			Optional<Entry<Integer, Map<String, String>>> optEntry = playerMap.entrySet().stream()/**/
+					.filter(idToMap -> {
+						// log.info(idToMap.toString());
+						// if (textTokens.size() == 3) {
+						// log.info(textTokens.toString());
+						// }
+						String target = textTokens.stream().collect(Collectors.joining(""));
+						// log.info(target);
+						String mapPlayerName = idToMap.getValue().get("playerFirstName").replace(" ", "")/**/
+								+ idToMap.getValue().get("playerMiddleName").replace(" ", "")/**/
+								+ idToMap.getValue().get("playerLastName").replace(" ", "")/**/;
+						// log.info(mapPlayerName);
+						if (target.compareTo(mapPlayerName) == 0) {
+							return true;
+						} else {
+							return false;
+						}
+					})/**/
 					.findFirst();
 
-			if (opt.isPresent()) {
-				return opt.get();
+			if (optEntry.isPresent()) {
+				// String playerId = String.valueOf(optEntry.get().getKey());
+				// log.info(playerId);
+				return optEntry.get().getKey();
+				// return Integer.valueOf(optMap.get().get("playerId"));
 			} else {
-				// log.warn("Cannot acquire playerId: " + textTokens.toString());
+				log.warn("Cannot acquire playerId: " + textTokens.toString());
 				return null;
 			}
 		} catch (Exception e) {

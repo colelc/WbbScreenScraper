@@ -12,6 +12,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import utils.CalendarUtils;
+import utils.JsoupUtils;
 
 public class GamecastElementProcessor {
 
@@ -265,7 +266,10 @@ public class GamecastElementProcessor {
 		return networkCoverages;
 	}
 
-	public static String extractGameDate(Element gameInfoElement) throws Exception {
+	public static String extractGameDate(Document doc, String gameId) throws Exception {
+
+		Element gameInfoElement = extractGameInfoElement(doc, gameId);
+
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return null;
@@ -282,7 +286,15 @@ public class GamecastElementProcessor {
 				return "";
 			}
 
-			Element gameDateEl = els.last();
+			// Element gameDateEl = els.last();
+			List<Element> spanList = els.stream().filter(el -> el.text().contains(":")).collect(Collectors.toList());
+			if (spanList == null || spanList.size() == 0) {
+				log.warn("Cannot acquire gameDate from span list");
+				return "";
+			}
+
+			Element gameDateEl = spanList.get(0);
+
 			List<String> dateElements = Arrays.asList(gameDateEl.text().split("\\,")).stream().filter(f -> !f.contains(":")).collect(Collectors.toList());
 			if (dateElements == null || dateElements.size() != 2) {
 				log.warn("Cannot acquire date elements needed to calculate game date");
@@ -313,18 +325,31 @@ public class GamecastElementProcessor {
 
 			String year = dateElements.get(1);
 			gameDate = year + month + day;
-//			Optional<String> opt = Arrays.asList(gameDateEl.text().split(",")).stream().findFirst();
-//			if (opt.isEmpty()) {
-//				log.warn("Cannot acquire game time from game time element");
-//				return "";
-//			}
-
-//			gameDate = CalendarUtils.parseUTCTime2(opt.get());
 
 		} catch (Exception e) {
 			throw e;
 		}
 		return gameDate;
+	}
+
+	public static Element extractGameInfoElement(Document doc, String gameId) throws Exception {
+		try {
+			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"), "section.GameInfo");// .first();
+			if (gameInfoElements == null || gameInfoElements.first() == null) {
+				log.info(gameId + ": There is no game information element");
+				return null;
+			}
+
+			Element gameInfoElement = gameInfoElements.first();
+
+			if (gameInfoElement == null) {
+				log.warn("There is no game Info element");
+				return null;
+			}
+			return gameInfoElement;
+		} catch (Exception e) {
+			throw e;
+		}
 	}
 
 	protected static String extractGametime(Element gameInfoElement) throws Exception {

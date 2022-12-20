@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.log4j.Logger;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -24,7 +25,56 @@ public class PlayByPlayProcessor {
 
 	private static Logger log = Logger.getLogger(PlayByPlayProcessor.class);
 
-	public static boolean processPlayByPlay(String url, /**/
+	public static void processPlayByPlaySingleGame(String url) throws Exception {
+
+		try {
+			Document doc = getDocument(url);
+			if (doc == null) {
+				log.warn("Cannot acquire document for this url: " + url);
+				return;
+			}
+			String gameId = Arrays.asList(url.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).collect(Collectors.toList()).get(0);
+			String gameDate = GamecastElementProcessor.extractGameDate(doc, gameId);
+
+			String homeTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--home");
+			if (homeTeamId == null || homeTeamId.trim().length() == 0) {
+				log.warn(url + " -> Cannot acquire the home team id from data-clubhouse-uid attribute value");
+				return;
+			}
+
+			String homeTeamConferenceId = GamecastProcessor.acquireTeamMapValue(homeTeamId, "conferenceId");
+
+			String roadTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--away");
+			if (roadTeamId == null || roadTeamId.trim().length() == 0) {
+				log.warn(url + " -> Cannot acquire the road team id from data-clubhouse-uid attribute value");
+				return;
+			}
+
+			String roadTeamConferenceId = GamecastProcessor.acquireTeamMapValue(roadTeamId, "conferenceId");
+
+			processPlayByPlay(doc, /**/
+					gameId, gameDate, /**/
+					homeTeamId, homeTeamConferenceId, roadTeamId, roadTeamConferenceId, /**/
+					DataProcessor.getPlayerMap(), /**/
+					null);
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static Document getDocument(String url) throws Exception {
+		try {
+			Document doc = JsoupUtils.jsoupExtraction(url);
+			if (doc == null) {
+				return null;
+			}
+			return doc;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static boolean processPlayByPlay(Document doc, /**/
 			String gameId, /**/
 			String gameDate, /**/
 			String homeTeamId, /**/
@@ -35,18 +85,15 @@ public class PlayByPlayProcessor {
 			BufferedWriter writer) throws Exception {
 
 		try {
-			Document doc = JsoupUtils.jsoupExtraction(url);
-			// log.info(doc.toString());
 			if (doc == null) {
-				log.warn("No html data for this play-by-play request");
+				log.warn("Playbyplay document is null - cannot process this game");
 				return false;
 			}
-
 			Elements pEls = doc.select("p");
 			if (pEls != null) {
 				Optional<Element> noPlayOpt = pEls.stream().filter(f -> f.text().compareTo("No Plays Available") == 0).findFirst();
 				if (noPlayOpt.isPresent()) {
-					log.info("There is no play-by-play data for this game -> " + url);
+					log.info("There is no play-by-play data for this game ");
 					return false;
 				}
 			}
@@ -82,7 +129,7 @@ public class PlayByPlayProcessor {
 
 					JsonObject playObj = play.getAsJsonObject();
 					// playObj.keySet().forEach(k -> log.info(k + " -> " + playObj.get(k)));
-					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerId(playObj, playerMap);
+					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(playObj, playerMap);
 					if (playerIdList == null) {
 						log.warn("Cannot identify players associated with a play");
 						break;
@@ -104,7 +151,11 @@ public class PlayByPlayProcessor {
 									+ ",[playerId]=" + String.valueOf(playerId)/**/
 									+ ",[play]=" + playerText/**/
 							;
-							writer.write(data + "\n");
+							if (writer != null) {
+								writer.write(data + "\n");
+							} else {
+								log.info(data);
+							}
 							// log.info(data);
 						}
 					}

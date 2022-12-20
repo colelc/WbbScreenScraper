@@ -32,11 +32,11 @@ public class CumulativeLookupProcessor {
 			gamecastsMap = new HashMap<>();
 			BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 
-			GAMECAST_DIRECTORY = ConfigUtils.getBASE_OUTPUT_PATH()/**/
-					+ File.separator + ConfigUtils.getProperty("base.output.child.data.path.season.2021.2022");
+			GAMECAST_DIRECTORY = ConfigUtils.getProperty("base.output.file.path")/**/
+					+ File.separator + ConfigUtils.getProperty("season");
 
-			CUMULATIVE_FILE_OUTPUT_LOCATION = ConfigUtils.getBASE_OUTPUT_PATH() /**/
-					+ File.separator + ConfigUtils.getProperty("base.output.child.data.path.season.2021.2022")/**/
+			CUMULATIVE_FILE_OUTPUT_LOCATION = ConfigUtils.getProperty("base.output.file.path") /**/
+					+ File.separator + ConfigUtils.getProperty("season")/**/
 					+ File.separator + ConfigUtils.getProperty("file.cumulative.stats");
 
 		} catch (Exception e) {

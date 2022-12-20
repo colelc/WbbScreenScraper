@@ -26,8 +26,8 @@ import utils.StringUtils;
 public class BaseProcessor {
 
 	private static String BASE_OUTPUT_PATH;
-	private static String BASE_OUTPUT_CHILD_DATA_PATH;
 	private static String ESPN_HOME;
+	private static String SEASON;
 
 	private static String dateTrackerFile;
 	private static String conferenceOutputFile;
@@ -45,35 +45,56 @@ public class BaseProcessor {
 	public static void go() throws Exception {
 		try {
 			ESPN_HOME = ConfigUtils.getESPN_HOME();
-			BASE_OUTPUT_PATH = ConfigUtils.getBASE_OUTPUT_PATH();
-			BASE_OUTPUT_CHILD_DATA_PATH = ConfigUtils.getBASE_OUTPUT_CHILD_DATA_PATH();
+			BASE_OUTPUT_PATH = ConfigUtils.getProperty("base.output.file.path");
+			SEASON = ConfigUtils.getProperty("season");
 
-			conferenceOutputFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.conferences");
-			teamOutputFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.teams");
-			playerOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.players");
+			conferenceOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.conferences");
+			teamOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.teams");
+			playerOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.players");
 
-			gameStatOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.game.stats");
-			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
-			gamecastFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.data.gamecast.stats");
+			gameStatOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.game.stats");
+			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
+			gamecastFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.gamecast.stats");
 
-			cumulativeStatsFile = BASE_OUTPUT_PATH + File.separator + BASE_OUTPUT_CHILD_DATA_PATH + File.separator + ConfigUtils.getProperty("file.cumulative.stats");
+			cumulativeStatsFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.cumulative.stats");
 
-			// loadConferencesTeamsPlayersSchedules();
-			String singleGamecastUrl = ConfigUtils.getSINGLE_GAMECAST_URL();
+			loadConferencesTeamsPlayersSchedules();
+			String singleGamecastUrl = ConfigUtils.getProperty("single.gamecast.url");
 			singleGamecastUrl = singleGamecastUrl == null || singleGamecastUrl.trim().length() == 0 ? null : singleGamecastUrl;
 
-			if (singleGamecastUrl == null) {
-				dateTrackerFile = BASE_OUTPUT_PATH + File.separator /* + BASE_OUTPUT_CHILD_DATA_PATH + File.separator */ + ConfigUtils.getProperty("file.data.dates.processed");
+			String singlePlaybyplayUrl = ConfigUtils.getProperty("single.playbyplay.url");
+			singlePlaybyplayUrl = singlePlaybyplayUrl == null || singlePlaybyplayUrl.trim().length() == 0 ? null : singlePlaybyplayUrl;
+
+			if (singleGamecastUrl == null && singlePlaybyplayUrl == null) {
+				dateTrackerFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.dates.processed");
 				skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
 				skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
 				DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, /**/
 						conferenceOutputFile, teamOutputFile, playerOutputFile, /**/
 						gameStatOutputFile, playByPlayOutputFile, gamecastFile, /**/
 						cumulativeStatsFile);
-			} else {
-				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile/* , scheduleFile */);
+				return;
+			}
+
+			if (singleGamecastUrl != null) {
+				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile);
 				GamecastProcessor.generateGamecastDataSingleUrl(singleGamecastUrl);
 				CumulativeStatsProcessor.generateCumulativeStatsSingleGame(singleGamecastUrl);
+			}
+
+			if (singlePlaybyplayUrl != null) {
+				String thisSeason = ConfigUtils.getProperty("season");
+				if (thisSeason == null || thisSeason.trim().length() == 0) {
+					log.error("We have a single playbyplay url to process, but we do not know for which season !  Adjust the season value");
+					return;
+				}
+
+				conferenceOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.conferences");
+				teamOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.teams");
+				playerOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.players");
+
+				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile);
+				PlayByPlayProcessor.processPlayByPlaySingleGame(singlePlaybyplayUrl);
 			}
 
 		} catch (Exception e) {
@@ -125,8 +146,10 @@ public class BaseProcessor {
 						String conferenceId = url.substring(url.lastIndexOf("/")).replace("/", "");
 
 						Elements elements = JsoupUtils.nullElementCheck(doc.select("div.headline"), "div.headline");
-						if (elements != null) {
+						if (elements == null || elements.first() == null) {
+							log.warn("We have no div.headline elements for this conference short name: " + conferenceShortName);
 
+						} else {
 							String data = "[id]=" + conferenceId + ",[shortName]=" + conferenceShortName + ",[longName]=" + elements.first().text();
 							conferenceWriter.append(data + "\n");
 

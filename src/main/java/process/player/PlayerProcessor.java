@@ -19,19 +19,20 @@ public class PlayerProcessor {
 
 	public static void generatePlayerFile(BufferedWriter playerWriter, String teamId, Document doc) throws Exception {
 
-		String playerId = null;
-		String playerName = null;
-		String playerFirstName = null;
-		String playerLastName = null;
-		String playerNumber = null;
-		String position = null;
-		String heightFeet = null;
-		String heightInches = null;
-		String heightCm = null;
-		String classYear = null;
-		String homeCity = null;
-		String homeState = null;
-		String playerUrl = null;
+		String playerId = "";
+		String playerName = "";
+		String playerFirstName = "";
+		String playerMiddleName = "";
+		String playerLastName = "";
+		String playerNumber = "";
+		String position = "";
+		String heightFeet = "";
+		String heightInches = "";
+		String heightCm = "";
+		String classYear = "";
+		String homeCity = "";
+		String homeState = "";
+		String playerUrl = "";
 
 		try {
 			// Document doc = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() +
@@ -75,13 +76,22 @@ public class PlayerProcessor {
 
 						playerName = JsoupUtils.nullElementCheck(playerDetail.getElementsByTag("a"), "a").first().text();
 						String[] playerNameTokens = playerName.split(" ");
-						if (playerNameTokens == null || playerNameTokens.length != 2) {
+						if (playerNameTokens == null || playerNameTokens.length == 0) {
 							completePlayerProfile = false;
 							break;
 						}
 						playerFirstName = playerNameTokens[0].trim();
-						playerLastName = playerNameTokens[1].trim();
-						//
+
+						if (playerNameTokens.length == 2) {
+							playerLastName = playerNameTokens[1].trim();
+						} else if (playerNameTokens.length == 3) {
+							playerMiddleName = playerNameTokens[1].trim();
+							playerLastName = playerNameTokens[2].trim();
+						} else {
+							log.warn("What to do with playerNameTokens!! " + playerNameTokens.toString());
+							return;
+						}
+
 						playerId = Arrays.asList(playerUrl.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).collect(Collectors.toList()).get(0);
 
 						Elements playerNumberElements = JsoupUtils.nullElementCheck(playerDetail.getElementsByAttributeValue("class", "pl2 n10"), "pl2 n10");
@@ -144,6 +154,7 @@ public class PlayerProcessor {
 							+ ",[playerUrl]=" + playerUrl/**/
 							+ ",[playerName]=" + playerName/**/
 							+ ",[playerFirstName]=" + playerFirstName/**/
+							+ ",[playerMiddleName]=" + playerMiddleName/**/
 							+ ",[playerLastName]=" + playerLastName/**/
 							+ ",[uniformNumber]=" + playerNumber/**/
 							+ ",[position]=" + position/**/
@@ -155,7 +166,7 @@ public class PlayerProcessor {
 							+ ",[homeState]=" + homeState/**/
 					;
 					playerWriter.write(data + "\n");
-					// log.info(data);
+					log.info(data);
 				}
 
 			}
