@@ -111,6 +111,17 @@ public class PlayByPlayProcessor {
 				return false;
 			}
 
+			// slice out the players from the player map who are on the road & home teams
+			Map<Integer, Map<String, String>> players = playerMap.entrySet().stream()/**/
+					.filter(entry -> entry.getValue().get("teamId").compareTo(roadTeamId) == 0 || entry.getValue().get("teamId").compareTo(homeTeamId) == 0)/**/
+					.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+
+			for (Integer key : players.keySet()) {
+				Map<String, String> player = players.get(key);
+				log.info(player.toString());
+			}
+
+			// spin through each quarter
 			List<String> quarters = Arrays.asList(scriptData.substring(playGrpsIx + 12).split("]")).stream().limit(4l).collect(Collectors.toList());
 			for (String quarter : quarters) {
 				if (quarter.trim().length() < 10) {
@@ -129,7 +140,7 @@ public class PlayByPlayProcessor {
 
 					JsonObject playObj = play.getAsJsonObject();
 					// playObj.keySet().forEach(k -> log.info(k + " -> " + playObj.get(k)));
-					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(playObj, playerMap);
+					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(playObj, players /* playerMap */);
 					if (playerIdList == null) {
 						log.warn("Cannot identify players associated with a play");
 						break;

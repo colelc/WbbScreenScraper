@@ -17,7 +17,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import process.player.PlayerProcessor;
 import utils.ConfigUtils;
 import utils.FileUtils;
 import utils.JsoupUtils;
@@ -30,9 +29,9 @@ public class BaseProcessor {
 	private static String SEASON;
 
 	private static String dateTrackerFile;
-	private static String conferenceOutputFile;
-	private static String teamOutputFile;
-	private static String playerOutputFile;
+	private static String conferenceFile;
+	private static String teamFile;
+	private static String playerFile;
 	private static String gameStatOutputFile;
 	private static String playByPlayOutputFile;
 	private static String gamecastFile;
@@ -48,9 +47,9 @@ public class BaseProcessor {
 			BASE_OUTPUT_PATH = ConfigUtils.getProperty("base.output.file.path");
 			SEASON = ConfigUtils.getProperty("season");
 
-			conferenceOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.conferences");
-			teamOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.teams");
-			playerOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.players");
+			conferenceFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.conferences");
+			teamFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.teams");
+			playerFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.players");
 
 			gameStatOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.game.stats");
 			playByPlayOutputFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.playbyplay.stats");
@@ -58,7 +57,7 @@ public class BaseProcessor {
 
 			cumulativeStatsFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.cumulative.stats");
 
-			loadConferencesTeamsPlayersSchedules();
+			// loadConferencesTeams(); // these files are already built for 2021-22
 			String singleGamecastUrl = ConfigUtils.getProperty("single.gamecast.url");
 			singleGamecastUrl = singleGamecastUrl == null || singleGamecastUrl.trim().length() == 0 ? null : singleGamecastUrl;
 
@@ -70,14 +69,14 @@ public class BaseProcessor {
 				skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
 				skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
 				DataProcessor.generateGameDataFiles(skipDates, dateTrackerFile, /**/
-						conferenceOutputFile, teamOutputFile, playerOutputFile, /**/
+						conferenceFile, teamFile, playerFile, /**/
 						gameStatOutputFile, playByPlayOutputFile, gamecastFile, /**/
 						cumulativeStatsFile);
 				return;
 			}
 
 			if (singleGamecastUrl != null) {
-				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile);
+				DataProcessor.loadDataFiles(conferenceFile, teamFile, playerFile);
 				GamecastProcessor.generateGamecastDataSingleUrl(singleGamecastUrl);
 				CumulativeStatsProcessor.generateCumulativeStatsSingleGame(singleGamecastUrl);
 			}
@@ -89,11 +88,11 @@ public class BaseProcessor {
 					return;
 				}
 
-				conferenceOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.conferences");
-				teamOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.teams");
-				playerOutputFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.players");
+				conferenceFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.conferences");
+				teamFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.teams");
+				playerFile = BASE_OUTPUT_PATH + File.separator + thisSeason + File.separator + ConfigUtils.getProperty("file.data.players");
 
-				DataProcessor.loadDataFiles(conferenceOutputFile, teamOutputFile, playerOutputFile);
+				DataProcessor.loadDataFiles(conferenceFile, teamFile, playerFile);
 				PlayByPlayProcessor.processPlayByPlaySingleGame(singlePlaybyplayUrl);
 			}
 
@@ -102,10 +101,10 @@ public class BaseProcessor {
 		}
 	}
 
-	private static Map<String, String> loadConferencesTeamsPlayersSchedules() throws Exception {
+	private static Map<String, String> loadConferencesTeams() throws Exception {
 		try {
 			Map<String, String> conferenceUrlMap = new HashMap<>(generateConferenceUrlMap());
-			generateConferenceTeamPlayerDataFiles(conferenceUrlMap);
+			generateConferenceTeamDataFiles(conferenceUrlMap);
 			return conferenceUrlMap;
 		} catch (Exception e) {
 			throw e;
@@ -130,11 +129,13 @@ public class BaseProcessor {
 		return conferenceUrlMap;
 	}
 
-	private static String generateConferenceTeamPlayerDataFiles(Map<String, String> conferenceUrlMap) throws Exception {
+	private static String generateConferenceTeamDataFiles(Map<String, String> conferenceUrlMap) throws Exception {
 
-		try (BufferedWriter conferenceWriter = new BufferedWriter(new FileWriter(conferenceOutputFile, false)); /**/
-				BufferedWriter teamWriter = new BufferedWriter(new FileWriter(teamOutputFile, false)); /**/
-				BufferedWriter playerWriter = new BufferedWriter(new FileWriter(playerOutputFile, false));) {/**/
+		try (BufferedWriter conferenceWriter = new BufferedWriter(new FileWriter(conferenceFile, false)); /**/
+				BufferedWriter teamWriter = new BufferedWriter(new FileWriter(teamFile, false)); /**/
+		// BufferedWriter playerWriter = new BufferedWriter(new FileWriter(playerFile,
+		// false));/**/
+		) {/**/
 
 			conferenceUrlMap.forEach((conferenceShortName, url) -> {
 				try {
@@ -191,8 +192,9 @@ public class BaseProcessor {
 									}
 
 									/** String playerOutputFile = */
-									Document document = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() + optRosterAnchor.get().attr("href"));
-									PlayerProcessor.generatePlayerFile(playerWriter, teamId, document);
+									// Document document = JsoupUtils.jsoupExtraction(ConfigUtils.getESPN_HOME() +
+									// optRosterAnchor.get().attr("href"));
+									// PlayerProcessor.generatePlayerFile(playerWriter, teamId, document);
 								}
 							}
 						}
@@ -210,7 +212,7 @@ public class BaseProcessor {
 			throw e;
 		}
 
-		return conferenceOutputFile;
+		return conferenceFile;
 	}
 
 }

@@ -75,18 +75,15 @@ public class PlayByPlayElementProcessor {
 
 	private static Integer parsePlayerId(List<String> textTokens, Map<Integer, Map<String, String>> playerMap) throws Exception {
 		try {
+			String target = textTokens.stream().collect(Collectors.joining(""));
+			// log.info(target);
+			// log.info(playerMap.toString());
 			Optional<Entry<Integer, Map<String, String>>> optEntry = playerMap.entrySet().stream()/**/
 					.filter(idToMap -> {
 						// log.info(idToMap.toString());
-						// if (textTokens.size() == 3) {
-						// log.info(textTokens.toString());
-						// }
-						String target = textTokens.stream().collect(Collectors.joining(""));
-						// log.info(target);
 						String mapPlayerName = idToMap.getValue().get("playerFirstName").replace(" ", "")/**/
 								+ idToMap.getValue().get("playerMiddleName").replace(" ", "")/**/
 								+ idToMap.getValue().get("playerLastName").replace(" ", "")/**/;
-						// log.info(mapPlayerName);
 						if (target.compareTo(mapPlayerName) == 0) {
 							return true;
 						} else {

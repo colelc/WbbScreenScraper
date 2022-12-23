@@ -2,15 +2,15 @@ package driver;
 
 import org.apache.log4j.Logger;
 
-import process.historical.PlayerLookupProcessor;
+import process.historical.PlayerCleanupProcessor;
 import utils.ConfigUtils;
 
-public class PlayerLookupDriver {
+public class PlayerCleanupDriver {
 
-	private static Logger log = Logger.getLogger(PlayerLookupDriver.class);
+	private static Logger log = Logger.getLogger(PlayerCleanupDriver.class);
 
 	public static void main(String[] args) {
-		log.info("Looking for players from past years ");
+		log.info("Cleaning up the data extracted by the player lookup processor ");
 
 		try {
 			String season = ConfigUtils.getProperty("season");
@@ -22,13 +22,14 @@ public class PlayerLookupDriver {
 				log.info("Season value is: " + season);
 			}
 
-			PlayerLookupProcessor.go(season);
+			// PlayerCleanupProcessor.consolidate(season);
+			PlayerCleanupProcessor.eliminate(season);
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
 		}
 
-		log.info("This concludes player lookups");
+		log.info("This concludes player cleanup");
 	}
 
 }
