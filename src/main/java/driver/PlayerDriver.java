@@ -5,12 +5,12 @@ import org.apache.log4j.Logger;
 import process.historical.PlayerLookupProcessor;
 import utils.ConfigUtils;
 
-public class PlayerLookupDriver {
+public class PlayerDriver {
 
-	private static Logger log = Logger.getLogger(PlayerLookupDriver.class);
+	private static Logger log = Logger.getLogger(PlayerDriver.class);
 
 	public static void main(String[] args) {
-		log.info("Looking for players from past years ");
+		log.info("THIS IS THE PLAYER DRIVER - BY SEASON ");
 
 		try {
 			String season = ConfigUtils.getProperty("season");

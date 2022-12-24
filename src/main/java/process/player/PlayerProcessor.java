@@ -44,14 +44,14 @@ public class PlayerProcessor {
 				System.exit(99);
 			}
 
-			Elements playerElements = JsoupUtils.nullElementCheck(doc.select("tr.Table__TR"), "tr.Table__TR");
+			Elements playerElements = JsoupUtils.nullElementCheck(doc.select("tr.Table__TR"));
 			if (playerElements == null) {
 				return;
 			}
 
 			for (Element playerElement : playerElements) {
-				Elements playerDetails = JsoupUtils.nullElementCheck(playerElement.getElementsByTag("td"), "td");
-				if (playerDetails == null || playerDetails.first() == null) {
+				Elements playerDetails = JsoupUtils.nullElementCheck(playerElement.getElementsByTag("td"));
+				if (playerDetails == null) {
 					continue;
 				}
 
@@ -67,14 +67,14 @@ public class PlayerProcessor {
 
 					switch (i) {
 					case 0:
-						playerUrl = JsoupUtils.nullElementCheck(playerDetail.getElementsByTag("a"), "a").first().attr("href");
+						playerUrl = JsoupUtils.nullElementCheck(playerDetail.getElementsByTag("a")).first().attr("href");
 						if (playerUrl == null) {
 							log.warn("No player url found... skipping");
 							completePlayerProfile = false;
 							break;
 						}
 
-						playerName = JsoupUtils.nullElementCheck(playerDetail.getElementsByTag("a"), "a").first().text();
+						playerName = JsoupUtils.nullElementCheck(playerDetail.getElementsByTag("a")).first().text();
 						String[] playerNameTokens = playerName.split(" ");
 						if (playerNameTokens == null || playerNameTokens.length == 0) {
 							completePlayerProfile = false;
@@ -94,7 +94,7 @@ public class PlayerProcessor {
 
 						playerId = Arrays.asList(playerUrl.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).collect(Collectors.toList()).get(0);
 
-						Elements playerNumberElements = JsoupUtils.nullElementCheck(playerDetail.getElementsByAttributeValue("class", "pl2 n10"), "pl2 n10");
+						Elements playerNumberElements = JsoupUtils.nullElementCheck(playerDetail.getElementsByAttributeValue("class", "pl2 n10"));
 						if (playerNumberElements == null) {
 							// log.warn("No player number detected... skipping");
 							completePlayerProfile = false;

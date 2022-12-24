@@ -2,7 +2,7 @@ package driver;
 
 import org.apache.log4j.Logger;
 
-import process.BaseProcessor;
+import process.DataProcessor;
 
 public class ScreenScrapeDriver {
 
@@ -12,7 +12,7 @@ public class ScreenScrapeDriver {
 		log.info("THIS IS THE SCREEN SCRAPE DRIVER");
 
 		try {
-			BaseProcessor.go();
+			DataProcessor.go();
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();

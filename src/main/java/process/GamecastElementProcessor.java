@@ -18,7 +18,7 @@ public class GamecastElementProcessor {
 
 	private static Logger log = Logger.getLogger(GamecastElementProcessor.class);
 
-	protected static String extractGameStatus(Document doc) throws Exception {
+	public static String extractGameStatus(Document doc) throws Exception {
 
 		String status = "";
 
@@ -46,7 +46,7 @@ public class GamecastElementProcessor {
 
 	}
 
-	protected static String extractReferees(Element gameInfoElement) throws Exception {
+	public static String extractReferees(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -74,7 +74,7 @@ public class GamecastElementProcessor {
 		return referees;
 	}
 
-	protected static String extractVenueState(Element gameInfoElement) throws Exception {
+	public static String extractVenueState(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -104,7 +104,7 @@ public class GamecastElementProcessor {
 		return venueState;
 	}
 
-	protected static String extractVenueCity(Element gameInfoElement) throws Exception {
+	public static String extractVenueCity(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -134,7 +134,7 @@ public class GamecastElementProcessor {
 		return venueCity;
 	}
 
-	protected static String extractVenueName(Element gameInfoElement) throws Exception {
+	public static String extractVenueName(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -161,7 +161,7 @@ public class GamecastElementProcessor {
 		return venueName;
 	}
 
-	protected static String extractVenuePercentageFull(Element gameInfoElement) throws Exception {
+	public static String extractVenuePercentageFull(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -184,7 +184,7 @@ public class GamecastElementProcessor {
 		return pctFull;
 	}
 
-	protected static String extractVenueCapacity(Element gameInfoElement) throws Exception {
+	public static String extractVenueCapacity(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -213,7 +213,7 @@ public class GamecastElementProcessor {
 		return capacity;
 	}
 
-	protected static String extractAttendance(Element gameInfoElement) throws Exception {
+	public static String extractAttendance(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -236,7 +236,7 @@ public class GamecastElementProcessor {
 		return attendance;
 	}
 
-	protected static String extractNetworkCoverages(Element gameInfoElement) throws Exception {
+	public static String extractNetworkCoverages(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -334,8 +334,8 @@ public class GamecastElementProcessor {
 
 	public static Element extractGameInfoElement(Document doc, String gameId) throws Exception {
 		try {
-			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"), "section.GameInfo");// .first();
-			if (gameInfoElements == null || gameInfoElements.first() == null) {
+			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"));// .first();
+			if (gameInfoElements == null) {
 				log.info(gameId + ": There is no game information element");
 				return null;
 			}
@@ -352,7 +352,7 @@ public class GamecastElementProcessor {
 		}
 	}
 
-	protected static String extractGametime(Element gameInfoElement) throws Exception {
+	public static String extractGametime(Element gameInfoElement) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";

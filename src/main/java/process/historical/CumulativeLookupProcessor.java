@@ -32,12 +32,12 @@ public class CumulativeLookupProcessor {
 			gamecastsMap = new HashMap<>();
 			BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 
-			GAMECAST_DIRECTORY = ConfigUtils.getProperty("base.output.file.path")/**/
+			GAMECAST_DIRECTORY = ConfigUtils.getProperty("project.path.output.data")/**/
 					+ File.separator + ConfigUtils.getProperty("season");
 
-			CUMULATIVE_FILE_OUTPUT_LOCATION = ConfigUtils.getProperty("base.output.file.path") /**/
+			CUMULATIVE_FILE_OUTPUT_LOCATION = ConfigUtils.getProperty("base.project.path.output.data.file.path") /**/
 					+ File.separator + ConfigUtils.getProperty("season")/**/
-					+ File.separator + ConfigUtils.getProperty("file.cumulative.stats");
+					+ File.separator + ConfigUtils.getProperty("file.cumulative.stats.txt");
 
 		} catch (Exception e) {
 			log.error(e.getMessage());
@@ -77,7 +77,10 @@ public class CumulativeLookupProcessor {
 					String homeConferenceId = extractId(dataForThisGame, "homeTeamConferenceId");
 
 					Thread.sleep(500l);
-					acquire(boxscoreUrl, gameDate, gameId, roadTeamId, roadConferenceId, homeTeamId, homeConferenceId, writer);
+					Document doc = JsoupUtils.acquire(boxscoreUrl);
+					CumulativeStatsProcessor.generateCumulativeStats(doc, gameId, gameDate, writer, /**/
+							roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
+
 				}
 			} catch (Exception e) {
 				throw e;
@@ -86,38 +89,6 @@ public class CumulativeLookupProcessor {
 		}
 
 		return;
-	}
-
-	private static void acquire(String boxscoreUrl, String gameDate, String gameId, /**/
-			String roadTeamId, String roadConferenceId, String homeTeamId, String homeConferenceId, /**/
-			BufferedWriter writer) throws Exception {
-
-		boolean noDoc = true;
-		int tries = 0;
-		int MAX_TRIES = 10;
-
-		while (noDoc)
-			try {
-				++tries;
-				if (tries > MAX_TRIES) {
-					log.warn("We have tried 10 times and cannot acquire this document, for game: " + boxscoreUrl);
-					return;
-				}
-
-				Document doc = getDocument(boxscoreUrl);
-				if (doc == null) {
-					log.warn("Cannot acquire document for " + boxscoreUrl);
-				}
-
-				noDoc = false;
-
-				CumulativeStatsProcessor.generateCumulativeStats(doc, gameId, gameDate, writer, /**/
-						roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
-
-			} catch (Exception e) {
-				log.error(e.getMessage());
-				Thread.sleep(30000l);
-			}
 	}
 
 	private static String extractId(String dataForThisGame, String targetKey) throws Exception {
@@ -138,19 +109,6 @@ public class CumulativeLookupProcessor {
 
 			log.warn("Cannot acquire an id for key: " + targetKey);
 			return "";
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
-	private static Document getDocument(String boxscoreUrl) throws Exception {
-		try {
-			Document doc = JsoupUtils.jsoupExtraction(boxscoreUrl);
-			if (doc == null) {
-				log.warn("No html data for this box score request");
-				return null;
-			}
-			return doc;
 		} catch (Exception e) {
 			throw e;
 		}

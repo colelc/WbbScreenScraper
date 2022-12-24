@@ -50,7 +50,7 @@ public class CumulativeStatsProcessor {
 	public static void generateCumulativeStatsSingleGame(String boxscoreUrl) throws Exception {
 
 		try {
-			Document doc = JsoupUtils.jsoupExtraction(boxscoreUrl);
+			Document doc = JsoupUtils.acquire(boxscoreUrl);
 
 			if (doc == null || doc.toString().trim().length() == 0) {
 				log.warn(boxscoreUrl + " -> There is no boxscore page data for this game: ");

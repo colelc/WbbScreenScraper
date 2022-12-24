@@ -4,6 +4,5 @@
 WbbScreenScraper*.log*
 modules/
 output/
-players/allPlayersFilteredUrl.txt
-players/players_not_found.txt
+players/2022-23/
 

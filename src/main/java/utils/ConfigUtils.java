@@ -15,8 +15,6 @@ public class ConfigUtils {
 	static {
 		try {
 			loadProperties();
-
-			ESPN_HOME = getProperty("espn.com.home.page");
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();

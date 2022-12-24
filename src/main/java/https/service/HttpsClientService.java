@@ -13,6 +13,8 @@ import javax.net.ssl.X509TrustManager;
 
 import org.apache.log4j.Logger;
 
+import utils.FileUtils;
+
 public class HttpsClientService {
 
 	private static HttpsURLConnection httpsUrlConnection = null;
@@ -58,6 +60,17 @@ public class HttpsClientService {
 				httpsUrlConnection.disconnect();
 				// log.info("HttpsURLConnection object has been disconnected");
 			}
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static String jsoupExtraction(String url) throws Exception {
+		try {
+			url = url.contains("http://") ? url.replace("http://", "https://") : url;
+			String html = FileUtils.streamHttpsUrlConnection(getHttpsURLConnection(url), false);
+			return html;
+
 		} catch (Exception e) {
 			throw e;
 		}

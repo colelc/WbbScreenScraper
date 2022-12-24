@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.log4j.Logger;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,70 +18,22 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import utils.JsoupUtils;
+import service.conference.team.player.ConferenceTeamPlayerService;
 
 public class PlayByPlayProcessor {
 
 	private static Logger log = Logger.getLogger(PlayByPlayProcessor.class);
 
-	public static void processPlayByPlaySingleGame(String url) throws Exception {
-
-		try {
-			Document doc = getDocument(url);
-			if (doc == null) {
-				log.warn("Cannot acquire document for this url: " + url);
-				return;
-			}
-			String gameId = Arrays.asList(url.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).collect(Collectors.toList()).get(0);
-			String gameDate = GamecastElementProcessor.extractGameDate(doc, gameId);
-
-			String homeTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--home");
-			if (homeTeamId == null || homeTeamId.trim().length() == 0) {
-				log.warn(url + " -> Cannot acquire the home team id from data-clubhouse-uid attribute value");
-				return;
-			}
-
-			String homeTeamConferenceId = GamecastProcessor.acquireTeamMapValue(homeTeamId, "conferenceId");
-
-			String roadTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--away");
-			if (roadTeamId == null || roadTeamId.trim().length() == 0) {
-				log.warn(url + " -> Cannot acquire the road team id from data-clubhouse-uid attribute value");
-				return;
-			}
-
-			String roadTeamConferenceId = GamecastProcessor.acquireTeamMapValue(roadTeamId, "conferenceId");
-
-			processPlayByPlay(doc, /**/
-					gameId, gameDate, /**/
-					homeTeamId, homeTeamConferenceId, roadTeamId, roadTeamConferenceId, /**/
-					DataProcessor.getPlayerMap(), /**/
-					null);
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
-	public static Document getDocument(String url) throws Exception {
-		try {
-			Document doc = JsoupUtils.jsoupExtraction(url);
-			if (doc == null) {
-				return null;
-			}
-			return doc;
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
 	public static boolean processPlayByPlay(Document doc, /**/
+			String gameUrl, /**/
 			String gameId, /**/
 			String gameDate, /**/
 			String homeTeamId, /**/
 			String homeTeamConferenceId, /**/
 			String roadTeamId, /**/
 			String roadTeamConferenceId, /**/
-			Map<Integer, Map<String, String>> playerMap, /**/
-			BufferedWriter writer) throws Exception {
+			BufferedWriter writer, /**/
+			BufferedWriter dirtyDataWriter) throws Exception {
 
 		try {
 			if (doc == null) {
@@ -112,16 +63,15 @@ public class PlayByPlayProcessor {
 			}
 
 			// slice out the players from the player map who are on the road & home teams
-			Map<Integer, Map<String, String>> players = playerMap.entrySet().stream()/**/
+			Map<Integer, Map<String, String>> players = ConferenceTeamPlayerService.getPlayerMap().entrySet().stream()/**/
 					.filter(entry -> entry.getValue().get("teamId").compareTo(roadTeamId) == 0 || entry.getValue().get("teamId").compareTo(homeTeamId) == 0)/**/
 					.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
 
-			for (Integer key : players.keySet()) {
-				Map<String, String> player = players.get(key);
-				log.info(player.toString());
-			}
+//			for (Integer key : players.keySet()) {
+//				Map<String, String> player = players.get(key);
+//				log.info(player.toString());
+//			}
 
-			// spin through each quarter
 			List<String> quarters = Arrays.asList(scriptData.substring(playGrpsIx + 12).split("]")).stream().limit(4l).collect(Collectors.toList());
 			for (String quarter : quarters) {
 				if (quarter.trim().length() < 10) {
@@ -140,7 +90,7 @@ public class PlayByPlayProcessor {
 
 					JsonObject playObj = play.getAsJsonObject();
 					// playObj.keySet().forEach(k -> log.info(k + " -> " + playObj.get(k)));
-					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(playObj, players /* playerMap */);
+					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(gameUrl, playObj, players, dirtyDataWriter);
 					if (playerIdList == null) {
 						log.warn("Cannot identify players associated with a play");
 						break;

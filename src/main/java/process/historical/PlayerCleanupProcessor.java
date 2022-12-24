@@ -15,59 +15,48 @@ import utils.FileUtils;
 
 public class PlayerCleanupProcessor {
 
-	// private static String BASE_URL;
 	private static Logger log = Logger.getLogger(PlayerCleanupProcessor.class);
-
-	static {
-		try {
-			// BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
-		} catch (Exception e) {
-			log.error(e.getMessage());
-			e.printStackTrace();
-			System.exit(99);
-		}
-	}
 
 	public static void eliminate(String season) throws Exception {
 
-		String allPlayersUrlFile = ConfigUtils.getProperty("base.all.players.url.file.path")/**/
-				+ File.separator + ConfigUtils.getProperty("file.data.all.players.url");
+		String allPlayersUrlFile = ConfigUtils.getProperty("project.path.players")/**/
+				+ File.separator + ConfigUtils.getProperty("all.players.url.txt");
 
 		List<String> all = FileUtils.readFileLines(allPlayersUrlFile);
 		log.info(allPlayersUrlFile + " has " + all.size() + " URLs");
 
 		// previously not found
-		String notFoundUrlFile = ConfigUtils.getProperty("project.path")/**/
+		String notFoundUrlFile = ConfigUtils.getProperty("project.path.players")/**/
 				+ File.separator + "players_not_found.txt";
 
 		List<String> notFound = FileUtils.readFileLines(notFoundUrlFile);
 		log.info(notFoundUrlFile + " has " + notFound.size() + " URLs");
 
 		// 503s
-		String _503OutputFile = ConfigUtils.getProperty("project.path")/**/
-				+ File.separator + "tempOutput.txt";
-
-		List<String> _503s = FileUtils.readFileLines(_503OutputFile)/**/
-				.stream()/**/
-				.filter(f -> f.contains("We have tried"))/**/
-				.map(m -> m.split(" ")[18].replace("/stats", ""))/**/
-				.collect(Collectors.toList());/**/
-
-		log.info(_503OutputFile + " has " + _503s.size() + " URLs");
+//		String _503OutputFile = ConfigUtils.getProperty("project.path")/**/
+//				+ File.separator + "tempOutput.txt";
+//
+//		List<String> _503s = FileUtils.readFileLines(_503OutputFile)/**/
+//				.stream()/**/
+//				.filter(f -> f.contains("We have tried"))/**/
+//				.map(m -> m.split(" ")[18].replace("/stats", ""))/**/
+//				.collect(Collectors.toList());/**/
+//
+//		log.info(_503OutputFile + " has " + _503s.size() + " URLs");
 
 		// filter out the notFounds
 		Set<String> filteredForNotFound = all.stream().distinct().filter(f -> !notFound.contains(f)).collect(Collectors.toSet());
 		log.info("all list filtered for notFounds has " + filteredForNotFound.size() + " URLs");
 
-		Set<String> filteredForNotFoundAndNot503s = filteredForNotFound.stream().filter(f -> !_503s.contains(f)).collect(Collectors.toSet());
-		log.info("all list filtered for 503s and filtered for not founds has " + filteredForNotFoundAndNot503s.size() + " URLs");
+//		Set<String> filteredForNotFoundAndNot503s = filteredForNotFound.stream().filter(f -> !_503s.contains(f)).collect(Collectors.toSet());
+//		log.info("all list filtered for 503s and filtered for not founds has " + filteredForNotFoundAndNot503s.size() + " URLs");
 
 		// pull into new file
 		String allPlayersFilteredUrlFile = ConfigUtils.getProperty("project.path") /**/
 				+ File.separator + "allPlayersFilteredUrl.txt";
 
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(allPlayersFilteredUrlFile, false))) {
-			for (String data : filteredForNotFoundAndNot503s) {
+			for (String data : filteredForNotFound) {
 				writer.write(data + "\n");
 			}
 		} catch (Exception e) {

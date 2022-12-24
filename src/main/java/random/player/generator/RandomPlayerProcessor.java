@@ -1,6 +1,5 @@
 package random.player.generator;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -8,29 +7,15 @@ import java.util.stream.Collectors;
 
 import org.apache.log4j.Logger;
 
-import process.DataProcessor;
-import utils.ConfigUtils;
+import service.conference.team.player.ConferenceTeamPlayerService;
 
 public class RandomPlayerProcessor {
-
-	private static String BASE_OUTPUT_PATH;
-	private static String SEASON;
-
-	private static String conferenceFile;
-	private static String teamFile;
-	private static String playerFile;
 
 	private static Logger log = Logger.getLogger(RandomPlayerProcessor.class);
 
 	public static void go() throws Exception {
 		try {
-			BASE_OUTPUT_PATH = ConfigUtils.getProperty("base.output.file.path");
-			SEASON = ConfigUtils.getProperty("season");
-			conferenceFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.conferences");
-			teamFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.teams");
-			playerFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.data.players");
-
-			DataProcessor.loadDataFiles(conferenceFile, teamFile, playerFile);
+			ConferenceTeamPlayerService.loadDataFiles();
 			getTheRandomPlayer();
 		} catch (Exception e) {
 			throw e;
@@ -40,9 +25,9 @@ public class RandomPlayerProcessor {
 	private static void getTheRandomPlayer() throws Exception {
 		try {
 
-			List<Map<String, String>> teams = DataProcessor.getTeamMap().values().stream().collect(Collectors.toList());
-			List<Map<String, String>> players = DataProcessor.getPlayerMap().values().stream().collect(Collectors.toList());
-			List<Map<String, String>> conferences = DataProcessor.getConferenceMap().values().stream().collect(Collectors.toList());
+			List<Map<String, String>> teams = ConferenceTeamPlayerService.getTeamMap().values().stream().collect(Collectors.toList());
+			List<Map<String, String>> players = ConferenceTeamPlayerService.getPlayerMap().values().stream().collect(Collectors.toList());
+			List<Map<String, String>> conferences = ConferenceTeamPlayerService.getConferenceMap().values().stream().collect(Collectors.toList());
 
 			Integer playerIndex = null;
 
@@ -54,7 +39,7 @@ public class RandomPlayerProcessor {
 			Map<String, String> conferenceMap = conferences.get(conferenceIndex);
 			log.info("Conference index: " + String.valueOf(conferenceIndex) + " -> " + conferenceMap.toString());
 
-			Integer conferenceId = DataProcessor.getConferenceMap().entrySet().stream()/**/
+			Integer conferenceId = ConferenceTeamPlayerService.getConferenceMap().entrySet().stream()/**/
 					.filter(entry -> entry.getValue().get("shortName").compareTo(conferenceMap.get("shortName")) == 0 && /**/
 							entry.getValue().get("longName").compareTo(conferenceMap.get("longName")) == 0)/**/
 					.findFirst()/**/
@@ -74,7 +59,7 @@ public class RandomPlayerProcessor {
 			Map<String, String> teamMap = teamsInThisConference.get(teamIndex);
 			log.info("Team index: " + String.valueOf(teamIndex) + " -> " + teamMap.toString());
 
-			Integer teamId = DataProcessor.getTeamMap().entrySet().stream()/**/
+			Integer teamId = ConferenceTeamPlayerService.getTeamMap().entrySet().stream()/**/
 					.filter(entry -> entry.getValue().get("teamName").compareTo(teamMap.get("teamName")) == 0)/**/
 					.findFirst()/**/
 					.map(m -> m.getKey())/**/

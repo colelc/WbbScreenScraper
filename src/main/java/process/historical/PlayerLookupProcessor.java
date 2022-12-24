@@ -2,11 +2,9 @@ package process.historical;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.log4j.Logger;
@@ -15,24 +13,19 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import utils.ConfigUtils;
-import utils.FileUtils;
 import utils.JsoupUtils;
 import utils.StringUtils;
 
 public class PlayerLookupProcessor {
 
-	// private static String season;
-	private static String allPlayersUrlFile;
-	private static String playerHitsFile;
-	private static String playerMissesFile;
-	private static String url = null;
-	private static String BASE_URL;
+	private static String SEASON;
+	private static String ESPN_WBB_HOME_URL;
 
 	private static String playerName;
 	private static String playerFirstName;
 	private static String playerMiddleName;
 	private static String playerLastName;
-	private static boolean active = false;
+
 	private static String classYear;
 	private static String homeCity;
 	private static String homeState;
@@ -46,7 +39,7 @@ public class PlayerLookupProcessor {
 
 	static {
 		try {
-			BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
+			ESPN_WBB_HOME_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
@@ -57,25 +50,12 @@ public class PlayerLookupProcessor {
 	public static void go(String season) throws Exception {
 
 		try {
-
-			allPlayersUrlFile = ConfigUtils.getProperty("base.all.players.url.file.path")/**/
-					+ File.separator + ConfigUtils.getProperty("file.data.all.players.url");
-
-			playerHitsFile = ConfigUtils.getProperty("base.output.file.path") /**/
-					+ File.separator + season/**/
-					+ File.separator + ConfigUtils.getProperty("file.data.players");
-
-			playerMissesFile = ConfigUtils.getProperty("base.output.file.path") /**/
-					+ File.separator + season/**/
-					+ File.separator + ConfigUtils.getProperty("file.data.players.not.found");
-
+			SEASON = season;
 			String singlePlayerId = ConfigUtils.getProperty("single.player.id");
 			if (singlePlayerId == null || singlePlayerId.trim().length() == 0) {
-				// collectPlayerUrls(season);
-				rebuildPlayerFile(season);
+				lookups();
 			} else {
-				// collectPlayerUrlSinglePlayer(singlePlayerId);
-				processSinglePlayer(singlePlayerId, season);
+				processSinglePlayer(singlePlayerId);
 			}
 		} catch (Exception e) {
 			throw e;
@@ -84,116 +64,71 @@ public class PlayerLookupProcessor {
 		return;
 	}
 
-	private static void processSinglePlayer(String playerId, String season) throws Exception {
+	private static void lookups() throws Exception {
+		String playerFile = ConfigUtils.getProperty("project.path.players") /**/
+				+ File.separator + SEASON/**/
+				+ File.separator + ConfigUtils.getProperty("file.players.txt");
 
-		try {
-			log.info("Processing single playerId: " + playerId);
+		String playerNotFoundFile = ConfigUtils.getProperty("project.path.players") /**/
+				+ File.separator + SEASON/**/
+				+ File.separator + ConfigUtils.getProperty("file.players.not.found.txt");
 
-			String playerUrl = BASE_URL + "player/stats/_/id/" + playerId;
-			log.info(playerUrl);
-			Document document = JsoupUtils.parseStringToDocument(JsoupUtils.jsoupExtraction(playerUrl).toString());
-			String teamId = calculateTeamId(document, season);
-			process(season, playerId, playerUrl, teamId, document, null);
-		} catch (Exception e) {
-			throw e;
-		}
-	}
+		try (BufferedWriter playerFileWriter = new BufferedWriter(new FileWriter(playerFile, false)); /**/
+				BufferedWriter playerNotFoundFileWriter = new BufferedWriter(new FileWriter(playerNotFoundFile, false));) {
 
-	private static void rebuildPlayerFile(String season) throws Exception {
+			int startId = Integer.valueOf(ConfigUtils.getProperty("player.lookup.start.id")).intValue();
+			int endId = Integer.valueOf(ConfigUtils.getProperty("player.lookup.end.id")).intValue();
+			log.info("startId = " + startId + ", endId = " + endId);
 
-		try (BufferedWriter playerFileWriter = new BufferedWriter(new FileWriter(playerHitsFile, false)); /**/
-				BufferedWriter playerNotFoundWriter = new BufferedWriter(new FileWriter(playerMissesFile, false));) {
-
-			FileUtils.readFileLines(allPlayersUrlFile).forEach(url -> {
-				try {
-					String playerId = Arrays.asList(url.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).collect(Collectors.toList()).get(0);
-
-					Thread.sleep(150l);
-					String statsUrl = BASE_URL + "player/stats/_/id/" + playerId;
-					log.info(statsUrl);
-
-					Document document = acquire(statsUrl);
-
-					if (document != null) {
-						// log.info(document);
-						String teamId = calculateTeamId(document, season);
-						if (teamId == null) {
-							playerNotFoundWriter.write(url + "\n");
-						} else {
-							process(season, playerId, url, teamId, document, playerFileWriter);
-						}
-					}
-				} catch (Exception e) {
-					log.error(e.getMessage());
-					e.printStackTrace();
-				}
-			});
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
-	private static Document acquire(String playerUrl) throws Exception {
-		boolean noDoc = true;
-		int tries = 0;
-		int MAX_TRIES = 3;
-
-		while (noDoc) {
-			try {
-				++tries;
-				if (tries > MAX_TRIES) {
-					log.warn("We have tried " + MAX_TRIES + " times and cannot acquire this document, for player: " + playerUrl);
-					return null;
-				}
-
-				Document doc = getDocument(playerUrl);
-				if (doc == null) {
-					log.warn("Cannot acquire document for " + playerUrl);
-					return null;
-				}
-
-				return doc;
-			} catch (InterruptedException e) {
-				log.info(url + " -> Interrupted Exception");
-				log.error(e.getMessage());
-				e.printStackTrace();
-			} catch (FileNotFoundException fnfe) {
-				log.info(url + " -> No page");
-				return null;
-			} catch (Exception e) {
-				log.info(url + " -> a 503?");
-				log.error(e.getMessage());
-				Thread.sleep(15000l);
-			} // try catch
-		} // while
-		return null;
-	}
-
-	private static Document getDocument(String playerUrl) throws Exception {
-		try {
-			Document doc = JsoupUtils.jsoupExtraction(playerUrl);
-			if (doc == null) {
-				log.warn("No html data for this player request");
-				return null;
+			for (int playerId = startId; playerId < endId; ++playerId) {
+				read(String.valueOf(playerId), playerFileWriter, playerNotFoundFileWriter);
 			}
-			return doc;
 		} catch (Exception e) {
 			throw e;
 		}
 	}
 
-	private static void process(String season, String playerId, String playerUrl, String teamId, Document document, BufferedWriter playerFileWriter) throws Exception {
+	private static void read(String playerId, BufferedWriter playerFileWriter, BufferedWriter playerNotFoundFileWriter) throws Exception {
 
 		try {
+			Thread.sleep(150l);
+			String url = ESPN_WBB_HOME_URL + "player/_/id/" + playerId;
+			Document document = JsoupUtils.acquire(url);
+
+			if (document != null) {
+				process(playerId, url, document, playerFileWriter, playerNotFoundFileWriter);
+			} else {
+				playerNotFoundFileWriter.write("No document -> " + url);
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	private static void process(/**/
+			String playerId, /**/
+			String url, /**/
+			Document document, /**/
+			BufferedWriter playerFileWriter, /**/
+			BufferedWriter playerNotFoundFileWriter) throws Exception {
+
+		try {
+			String teamId = calculateTeamId(document);
+			if (teamId == null) {
+				log.warn(url + " -> Cannot calculate teamId");
+				playerNotFoundFileWriter.write("Cannot calculate teamId -> " + url);
+				return;
+			}
+
 			identifyActiveStatus(document);
 
 			assignPlayerName(document);
-			log.info(playerFirstName + " " + playerMiddleName + " " + playerLastName);
+			// log.info(playerFirstName + " " + playerMiddleName + " " + playerLastName);
 			assignPlayerNumberAndPosition(document);
 
 			String data = "[id]=" + playerId /**/
 					+ ",[teamId]=" + teamId/**/
-					+ ",[playerUrl]=" + playerUrl/**/
+					+ ",[playerUrl]=" + url/**/
 					+ ",[playerName]=" + playerName/**/
 					+ ",[playerFirstName]=" + playerFirstName/**/
 					+ ",[playerMiddleName]=" + (playerMiddleName.trim().length() == 0 ? "" : playerMiddleName)/**/
@@ -208,7 +143,7 @@ public class PlayerLookupProcessor {
 					+ ",[homeState]=" + homeState/**/
 			;
 			if (playerFileWriter != null) {
-				log.info(data);
+				log.info(url + " -> " + data);
 				playerFileWriter.write(data + "\n");
 			} else {
 				log.info(data);
@@ -219,7 +154,7 @@ public class PlayerLookupProcessor {
 		}
 	}
 
-	private static String calculateTeamId(Document document, String season) {
+	private static String calculateTeamId(Document document) {
 		String teamId = null;
 
 		Elements trEls = document.getElementsByAttributeValue("class", "Table__TR Table__TR--sm Table__even");
@@ -228,7 +163,7 @@ public class PlayerLookupProcessor {
 			return null;
 		}
 
-		if (!trEls.toString().contains(season)) {
+		if (!trEls.toString().contains(SEASON)) {
 			// log.warn("There is no data for the " + season + " season for this player");
 			return null;
 		}
@@ -244,7 +179,7 @@ public class PlayerLookupProcessor {
 			boolean haveTheTeamId = false;
 			for (Element tdEl : tdEls) {
 				// log.info(tdEl.toString());
-				if (tdEl.text().compareTo(season) == 0) {
+				if (tdEl.text().compareTo(SEASON) == 0) {
 					Element nextSibling = tdEl.nextElementSibling();
 					if (nextSibling == null) {
 						log.warn("Cannot acquire next sibling during teamId calculation... ");
@@ -283,22 +218,22 @@ public class PlayerLookupProcessor {
 	private static void assignPlayerNumberAndPosition(Document document) {
 		playerNumber = "";
 		position = "";
-		Elements els = acquire(document, "class", "PlayerHeader__Team_Info list flex pt1 pr4 min-w-0 flex-basis-0 flex-shrink flex-grow nowrap");
-		if (els == null) {
+		Elements els = document.getElementsByAttributeValue("class", "PlayerHeader__Team_Info list flex pt1 pr4 min-w-0 flex-basis-0 flex-shrink flex-grow nowrap");
+		if (els != null && els.first() != null) {
 			log.warn("Cannot acquire player position or player number: these will be left blank");
-		} else {
-			Elements lis = els.first().getElementsByTag("li");
-			if (lis != null && lis.size() == 2) {
-				playerNumber = lis.first().text().replace("#", "");
-				position = lis.last().text().replace("Forward", "F").replace("Guard", "G").replace("Center", "C");
-			} else if (lis != null && lis.size() == 3) {
-				playerNumber = lis.get(1).text().replace("#", "");
-				position = lis.get(2).text().replace("Forward", "F").replace("Guard", "G").replace("Center", "C");
-			} else {
-				log.warn("Cannot acquire player position or player number from li tags: these will be left blank");
-			}
+			return;
 		}
 
+		Elements lis = els.first().getElementsByTag("li");
+		if (lis != null && lis.size() == 2) {
+			playerNumber = lis.first().text().replace("#", "");
+			position = lis.last().text().replace("Forward", "F").replace("Guard", "G").replace("Center", "C");
+		} else if (lis != null && lis.size() == 3) {
+			playerNumber = lis.get(1).text().replace("#", "");
+			position = lis.get(2).text().replace("Forward", "F").replace("Guard", "G").replace("Center", "C");
+		} else {
+			log.warn("Cannot acquire player position or player number from li tags: these will be left blank");
+		}
 	}
 
 	private static void assignPlayerName(Document document) {
@@ -340,7 +275,7 @@ public class PlayerLookupProcessor {
 	}
 
 	private static void identifyActiveStatus(Document document) {
-		active = false;
+		boolean active = false;
 		classYear = "";
 		homeCity = "";
 		homeState = "";
@@ -391,69 +326,19 @@ public class PlayerLookupProcessor {
 			classYear = classYear.replace("SO", "FR").replace("JR", "SO").replace("SR", "JR");
 			log.info("Active");
 		}
-
 	}
 
-	private static Elements acquire(Document document, String attribute, String attributeValue) {
-		Elements els = document.getElementsByAttributeValue(attribute, attributeValue);
-		if (els != null && els.first() != null) {
-			return els;
-		}
+	private static void processSinglePlayer(String playerId) throws Exception {
 
-		return null;
-	}
+		try {
+			log.info("Processing single playerId: " + playerId);
 
-	private static void collectPlayerUrls(String season) throws Exception {
-		try (BufferedWriter playerUrlFileWriter = new BufferedWriter(new FileWriter(allPlayersUrlFile, false));) {
-
-			int startId = Integer.valueOf(ConfigUtils.getProperty("player.lookup.start.id")).intValue();
-			int endId = Integer.valueOf(ConfigUtils.getProperty("player.lookup.end.id")).intValue();
-			log.info("startId = " + startId + ", endId = " + endId);
-
-			for (int playerId = startId; playerId < endId; ++playerId) {
-				read(String.valueOf(playerId), playerUrlFileWriter);
-
-			}
+			String playerUrl = ESPN_WBB_HOME_URL + "player/stats/_/id/" + playerId;
+			log.info(playerUrl);
+			Document document = JsoupUtils.acquire(playerUrl);
+			process(playerId, playerUrl, document, null, null);
 		} catch (Exception e) {
 			throw e;
 		}
 	}
-
-	private static void read(String playerId, BufferedWriter playerUrlFileWriter) throws Exception {
-
-		int tries = 0;
-		int MAX_TRIES = 10;
-
-		while (true) {
-
-			try {
-				++tries;
-				if (tries > MAX_TRIES) {
-					log.warn("We have tried 10 times and cannot acquire this url, for player: " + playerId);
-					return;
-				}
-
-				Thread.sleep(150l);
-				url = BASE_URL + "player/_/id/" + playerId;
-				String html = JsoupUtils.getHttpDoc(url);
-				if (StringUtils.isPopulated(html)) {
-					log.info(url + " -> H I T ! !");
-					playerUrlFileWriter.write(url + "\n");
-					return;
-				}
-			} catch (InterruptedException e) {
-				log.info(url + " -> Interrupted Exception");
-				log.error(e.getMessage());
-				e.printStackTrace();
-			} catch (FileNotFoundException fnfe) {
-				log.info(url + " -> No page");
-				return;
-			} catch (Exception e) {
-				log.info(url + " -> a 503?");
-				log.error(e.getMessage());
-				Thread.sleep(30000l);
-			}
-		}
-	}
-
 }

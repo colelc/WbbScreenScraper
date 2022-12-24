@@ -23,7 +23,7 @@ public class GameStatProcessor {
 			BufferedWriter writer) throws Exception {
 
 		try {
-			Document doc = JsoupUtils.jsoupExtraction(url);
+			Document doc = JsoupUtils.acquire(url);
 			if (doc == null) {
 				log.warn("No html data for this box score request");
 				return null;

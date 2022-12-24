@@ -1,13 +1,13 @@
 package process;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +20,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import service.conference.team.player.ConferenceTeamPlayerService;
 import utils.CalendarUtils;
 import utils.ConfigUtils;
 import utils.FileUtils;
@@ -27,26 +28,47 @@ import utils.JsoupUtils;
 
 public class DataProcessor {
 
-	private static Integer id = null;
-	private static String SCOREBOARD_URL;
-	private static String BASE_URL;
-	private static Map<Integer, Map<String, String>> conferenceMap;
-	private static Map<Integer, Map<String, String>> teamMap;
-	private static Map<Integer, Map<String, String>> playerMap;
+	private static String SEASON;
+	private static String ESPN_SCOREBOARD_URL;
+	private static String ESPN_WBB_HOME_URL;
 	private static String now;
 	private static String NOT_AVAILABLE = "";
+	private static String PROJECT_PATH_OUTPUT_DATA;
+
+	private static String dateTrackerFile;
+	private static String gameStatOutputFile;
+	private static String playByPlayOutputFile;
+	private static String gamecastOutputFile;
+	private static String cumulativeStatsFile;
+	private static String dirtyDataFile;
+
+	private static Set<String> skipDates;
 
 	private static Logger log = Logger.getLogger(DataProcessor.class);
 
 	static {
 		try {
-			conferenceMap = new HashMap<>();
-			teamMap = new HashMap<>();
-			playerMap = new HashMap<>();
-			SCOREBOARD_URL = ConfigUtils.getProperty("espn.com.womens.scoreboard");
-			BASE_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
+			ESPN_SCOREBOARD_URL = ConfigUtils.getProperty("espn.com.womens.scoreboard");
+			ESPN_WBB_HOME_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 
 			now = LocalDate.ofInstant(Instant.now(), ZoneId.systemDefault()).toString().replace("-", "");
+
+			PROJECT_PATH_OUTPUT_DATA = ConfigUtils.getProperty("project.path.output.data");
+
+			SEASON = ConfigUtils.getProperty("season");
+
+			gameStatOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.game.stats.txt");
+			playByPlayOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.playbyplay.stats.txt");
+			gamecastOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.gamecast.stats.txt");
+
+			cumulativeStatsFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.cumulative.stats.txt");
+
+			dirtyDataFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("dirty.data.txt");
+
+			dateTrackerFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.date.tracker.txt");
+			skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
+			skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
+
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
@@ -54,20 +76,13 @@ public class DataProcessor {
 		}
 	}
 
-	public static void generateGameDataFiles(Set<String> skipDates, /**/
-			String dateTrackerFile, /**/
-			String conferenceFile, /**/
-			String teamFile, /**/
-			String playerFile, /**/
-			String gameStatFile, /**/
-			String playByPlayFile, /**/
-			String gamecastFile, /**/
-			String cumulativeStatsFile) throws Exception {
+	public static void go() throws Exception {
 
 		try {
-			loadDataFiles(conferenceFile, teamFile, playerFile);
+			// load conference and team maps (and player maps)
+			ConferenceTeamPlayerService.loadDataFiles();
 
-			Set<String> datesProcessed = extractGameData(skipDates, gameStatFile, playByPlayFile, gamecastFile, cumulativeStatsFile);
+			Set<String> datesProcessed = extractGameData();
 
 			// capture the dates just processed
 			FileUtils.writeAllLines(dateTrackerFile, datesProcessed, skipDates.size(), true);
@@ -78,8 +93,7 @@ public class DataProcessor {
 		return;
 	}
 
-	private static Set<String> extractGameData(Set<String> skipDates, /**/
-			String gameStatOutputFile, String playByPlayOutputFile, String gamecastOutputFile, String cumulativeStatsFile) throws Exception {
+	private static Set<String> extractGameData() throws Exception {
 
 		Set<String> datesProcessed = new HashSet<>();
 		String gameId = null;
@@ -91,105 +105,106 @@ public class DataProcessor {
 
 		List<String> seasonDates = new ArrayList<>(CalendarUtils.generateDates(ConfigUtils.getProperty("season.start.date"), ConfigUtils.getProperty("season.end.date")));
 
-		for (String gameDate : seasonDates) {
-			if (skipDates.contains(gameDate)) {
-				log.info("Skipping day: " + gameDate);
-				continue;
-			}
+		try (BufferedWriter dirtyDataWriter = new BufferedWriter(new FileWriter(dirtyDataFile, false))) {
 
-			if (!CalendarUtils.hasGameBeenPlayed(gameDate, now)) {
-				log.info("Skipping day: " + gameDate);
-				continue;
-			}
+			for (String gameDate : seasonDates) {
+				if (skipDates.contains(gameDate)) {
+					log.info("Skipping day: " + gameDate);
+					continue;
+				}
 
-			try (BufferedWriter gameStatWriter = new BufferedWriter(new FileWriter(gameStatOutputFile + "_" + gameDate, false));
-					/**/
-					BufferedWriter playByPlayWriter = new BufferedWriter(new FileWriter(playByPlayOutputFile + "_" + gameDate, false));
-					/**/
-					BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastOutputFile + "_" + gameDate, false));
-					/**/
-					BufferedWriter cumulativeWriter = new BufferedWriter(new FileWriter(cumulativeStatsFile + "_" + gameDate, false))) {
+				if (!CalendarUtils.hasGameBeenPlayed(gameDate, now)) {
+					log.info("Skipping day: " + gameDate);
+					continue;
+				}
 
-				log.info(gameDate + " -> " + SCOREBOARD_URL + gameDate);
+				try (BufferedWriter gameStatWriter = new BufferedWriter(new FileWriter(gameStatOutputFile + "_" + gameDate, false));
+						/**/
+						BufferedWriter playByPlayWriter = new BufferedWriter(new FileWriter(playByPlayOutputFile + "_" + gameDate, false));
+						/**/
+						BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastOutputFile + "_" + gameDate, false));
+						/**/
+						BufferedWriter cumulativeWriter = new BufferedWriter(new FileWriter(cumulativeStatsFile + "_" + gameDate, false))) {
 
-				Document htmlDoc = JsoupUtils.parseStringToDocument(JsoupUtils.jsoupExtraction(SCOREBOARD_URL + gameDate).toString());
+					log.info(gameDate + " -> " + ESPN_SCOREBOARD_URL + gameDate);
 
-				int sequence = -1;
-				Elements gameElements = JsoupUtils.nullElementCheck(htmlDoc.select("div.Scoreboard__Callouts"), "div.Scoreboard__Callouts");
-				if (gameElements != null && gameElements.first() != null) {
-					for (Element gameElement : gameElements) {
-						++sequence;
-						// set of 3 links (Gamecast, Box Score, Highlights) - we only care about the
-						// gameId which can be found in any of the 3 links
-						String href = gameElement.getElementsByAttribute("href").first().attr("href");
-						gameId = Arrays.asList(href.split("/")).stream().reduce((first, second) -> second).get();
+					Document htmlDoc = JsoupUtils.acquire(ESPN_SCOREBOARD_URL + gameDate);
 
-						String gamecastUrl = BASE_URL + "game/_/gameId/" + gameId;
-						String boxscoreUrl = BASE_URL + "boxscore/_/gameId/" + gameId;
-						String playbyplayUrl = BASE_URL + "playbyplay/_/gameId/" + gameId;
-//						log.info(gamecastUrl);
-						log.info("");
-						log.info("Processing: " + boxscoreUrl);
-//						log.info(playbyplayUrl);
+					int sequence = -1;
+					Elements gameElements = JsoupUtils.nullElementCheck(htmlDoc.select("div.Scoreboard__Callouts"));
+					if (gameElements != null) {
+						for (Element gameElement : gameElements) {
+							++sequence;
+							// set of 3 links (Gamecast, Box Score, Highlights) - we only care about the
+							// gameId which can be found in any of the 3 links
+							String href = gameElement.getElementsByAttribute("href").first().attr("href");
+							gameId = Arrays.asList(href.split("/")).stream().reduce((first, second) -> second).get();
 
-						// need the team id's
-						Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors"), "ul.ScoreboardScoreCell__Competitors").get(sequence);
-						Elements el = competitorsElement.getElementsByTag("li");
+							String gamecastUrl = ESPN_WBB_HOME_URL + "game/_/gameId/" + gameId;
+							String boxscoreUrl = ESPN_WBB_HOME_URL + "boxscore/_/gameId/" + gameId;
+							String playbyplayUrl = ESPN_WBB_HOME_URL + "playbyplay/_/gameId/" + gameId;
+							// log.info("");
+							// log.info("Processing: " + boxscoreUrl);
 
-						roadTeamId = getARoadTeamId(competitorsElement, el);
-						roadConferenceId = getAConferenceId(roadTeamId);
+							// need the team id's
+							Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors")).get(sequence);
+							Elements el = competitorsElement.getElementsByTag("li");
 
-						homeTeamId = getAHomeTeamId(competitorsElement);
-						homeConferenceId = getAConferenceId(homeTeamId);
+							roadTeamId = getARoadTeamId(competitorsElement, el);
+							roadConferenceId = ConferenceTeamPlayerService.getAConferenceId(roadTeamId);
 
-						String thisRoadTeam = "";
-						if (roadTeamId != null && roadTeamId.trim().length() > 0) {
-							Map<String, String> thisRoadTeamMap = teamMap.get(Integer.valueOf(roadTeamId));
-							if (thisRoadTeamMap != null) {
-								thisRoadTeam = thisRoadTeamMap.get("teamName");
+							homeTeamId = getAHomeTeamId(competitorsElement);
+							homeConferenceId = ConferenceTeamPlayerService.getAConferenceId(homeTeamId);
+
+							String thisRoadTeam = "";
+							if (roadTeamId != null && roadTeamId.trim().length() > 0) {
+								Map<String, String> thisRoadTeamMap = ConferenceTeamPlayerService.getTeamMap().get(Integer.valueOf(roadTeamId));
+								if (thisRoadTeamMap != null) {
+									thisRoadTeam = thisRoadTeamMap.get("teamName");
+								}
+							}
+
+							title = thisRoadTeam /**/
+									+ " (" /**/
+									+ (roadConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA"
+											: ConferenceTeamPlayerService.getConferenceMap().get(Integer.valueOf(roadConferenceId)).get("shortName") + ")")/**/
+									+ " at " /**/
+									+ (homeTeamId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : ConferenceTeamPlayerService.getTeamMap().get(Integer.valueOf(homeTeamId)).get("teamName"))/**/
+									+ (homeConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA"
+											: " (" + ConferenceTeamPlayerService.getConferenceMap().get(Integer.valueOf(homeConferenceId)).get("shortName") + ")");
+
+							log.info(gameDate + " -> " + gameId + " " + title);
+
+							GamecastProcessor.generateGamecastData(/**/
+									gamecastUrl, /**/
+									gameId, /**/
+									gameDate, /**/
+									homeTeamId, /**/
+									homeConferenceId, /**/
+									roadTeamId, /**/
+									roadConferenceId, /**/
+									gamecastWriter);
+
+							Document gameStatDoc = GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
+
+							Document playbyplayDoc = JsoupUtils.acquire(playbyplayUrl);
+							boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayDoc, boxscoreUrl, gameId, gameDate, /**/
+									homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, /**/
+									playByPlayWriter, dirtyDataWriter);
+
+							if (data) {
+								CumulativeStatsProcessor.generateCumulativeStats(gameStatDoc, gameId, gameDate, cumulativeWriter, /**/
+										roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
 							}
 						}
-
-						title = thisRoadTeam /**/
-								+ " (" /**/
-								+ (roadConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")")/**/
-								// + conferenceMap.get(Integer.valueOf(roadConferenceId)).get("shortName") + ")"
-								// /**/
-								+ " at " /**/
-								+ (homeTeamId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : teamMap.get(Integer.valueOf(homeTeamId)).get("teamName"))/**/
-								// + teamMap.get(Integer.valueOf(homeTeamId)).get("teamName") /**/
-								+ (homeConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : " (" + conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")")
-						// + " (" +
-						// conferenceMap.get(Integer.valueOf(homeConferenceId)).get("shortName") + ")";
-						;
-
-						log.info(gameDate + " -> " + gameId + " " + title);
-
-						GamecastProcessor.generateGamecastData(/**/
-								gamecastUrl, /**/
-								gameId, /**/
-								gameDate, /**/
-								homeTeamId, /**/
-								homeConferenceId, /**/
-								roadTeamId, /**/
-								roadConferenceId, /**/
-								gamecastWriter);
-
-						Document gameStatDoc = GameStatProcessor.processGameStats(boxscoreUrl, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, gameStatWriter);
-
-						Document playbyplayDoc = PlayByPlayProcessor.getDocument(playbyplayUrl);
-						boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayDoc, gameId, gameDate, homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, playerMap, playByPlayWriter);
-
-						if (data) {
-							CumulativeStatsProcessor.generateCumulativeStats(gameStatDoc, gameId, gameDate, cumulativeWriter, /**/
-									roadTeamId, roadConferenceId, homeTeamId, homeConferenceId);
-						}
 					}
+				} catch (Exception e) {
+					throw e;
 				}
-			} catch (Exception e) {
-				throw e;
+				datesProcessed.add(gameDate);
 			}
-			datesProcessed.add(gameDate);
+		} catch (Exception e) {
+			throw e;
 		}
 
 		return datesProcessed;
@@ -269,115 +284,4 @@ public class DataProcessor {
 			throw e;
 		}
 	}
-
-	private static String getAConferenceId(String teamId) throws Exception {
-		try {
-			if (teamId == null || teamId.trim().length() == 0) {
-				// log.warn("There is no teamId, therefore a conferenceId lookup is not
-				// possible");
-				return NOT_AVAILABLE;
-			}
-			Map<String, String> thisTeamMap = teamMap.get(Integer.valueOf(teamId));
-			if (thisTeamMap != null) {
-				String conferenceId = teamMap.get(Integer.valueOf(teamId)).get("conferenceId");
-				if (conferenceId != null) {
-					return conferenceId;
-				} else {
-					return NOT_AVAILABLE;
-				}
-			} else {
-				// log.warn("No entry in team map for teamId=" + teamId + " - cannot assign
-				// conferenceId");
-				return NOT_AVAILABLE;
-			}
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
-	public static void loadDataFiles(String conferenceFile, /**/
-			String teamFile, /**/
-			String playerFile /**/
-	// String scheduleFile/**/
-	) throws Exception {
-
-		try {
-			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);
-			teamMap = fileDataToMap(FileUtils.readFileLines(teamFile), false);
-			playerMap = fileDataToMap(FileUtils.readFileLines(playerFile), false);
-			// scheduleMap = fileDataToMap(FileUtils.readFileLines(scheduleFile), false);
-		} catch (Exception e) {
-			throw e;
-		}
-
-		return;
-	}
-
-	protected static Map<Integer, Map<String, String>> fileDataToMap(List<String> dataList, boolean debug) throws Exception {
-
-		Map<Integer, Map<String, String>> retMap = new HashMap<>();
-
-		try {
-			dataList.forEach(data -> {
-				List<String> attributes = Arrays.asList(data.split(","));
-
-				Map<String, String> map = new HashMap<>();
-
-				attributes.forEach(attribute -> {
-					String[] tokens = attribute.replace("[", "").replace("]", "").split("=");
-					if (tokens != null && tokens.length == 2) {
-						String key = tokens[0].trim();
-						String value = tokens[1].trim();
-
-						if (key.compareTo("id") == 0) {
-							id = Integer.valueOf(value);
-						} else {
-							map.put(key, value);
-						}
-					} else if (tokens.length == 1) {
-						String key = tokens[0].trim();
-						String value = "";
-						map.put(key, value);
-					}
-				});
-				retMap.put(id, map);
-			});
-		} catch (Exception e) {
-			throw e;
-		}
-
-		// if (debug) {
-		// retMap.forEach((key, map) -> log.info(key + " -> " + map.toString()));
-		// }
-		return retMap;
-	}
-
-	public static Integer getId() {
-		return id;
-	}
-
-	public static String getSCOREBOARD_URL() {
-		return SCOREBOARD_URL;
-	}
-
-	public static String getBASE_URL() {
-		return BASE_URL;
-	}
-
-	public static Map<Integer, Map<String, String>> getConferenceMap() {
-		return conferenceMap;
-	}
-
-	public static Map<Integer, Map<String, String>> getTeamMap() {
-		return teamMap;
-	}
-
-	public static Map<Integer, Map<String, String>> getPlayerMap() {
-		return playerMap;
-	}
-
-	public static String getNow() {
-		return now;
-	}
-
 }

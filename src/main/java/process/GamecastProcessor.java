@@ -9,6 +9,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import service.conference.team.player.ConferenceTeamPlayerService;
 import utils.JsoupUtils;
 
 public class GamecastProcessor {
@@ -25,10 +26,10 @@ public class GamecastProcessor {
 			BufferedWriter writer) throws Exception {
 
 		try {
-			Document doc = JsoupUtils.jsoupExtraction(gamecastUrl);
+			Document doc = JsoupUtils.acquire(gamecastUrl);
 
-			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"), "section.GameInfo");// .first();
-			if (gameInfoElements == null || gameInfoElements.first() == null) {
+			Elements gameInfoElements = JsoupUtils.nullElementCheck(doc.select("section.GameInfo"));// .first();
+			if (gameInfoElements == null) {
 				log.info(gameId + ": There is no game information element");
 				return;
 			}
@@ -83,103 +84,6 @@ public class GamecastProcessor {
 		}
 	}
 
-	public static void generateGamecastDataSingleUrl(String gamecastUrl) throws Exception {
-		// String gameId, /**/
-		// String gameDate, /**/
-		// String homeTeamId, /**/
-		// String homeTeamConferenceId, /**/
-		// String roadTeamId, /**/
-		// String roadTeamConferenceId, /**/
-		// BufferedWriter writer) throws Exception {
-
-		log.info("We are processing a single gamecast url: " + gamecastUrl);
-
-		try {
-			Document doc = JsoupUtils.jsoupExtraction(gamecastUrl);
-
-			if (doc == null || doc.toString().trim().length() == 0) {
-				log.warn(gamecastUrl + " -> There is no gamecast page data for this game: ");
-				return;
-			}
-
-			String gameId = Arrays.asList(gamecastUrl.split("/")).stream().reduce((first, second) -> second).get();
-			String gameDate = GamecastElementProcessor.extractGameDate(doc, gameId);
-			if (gameDate == null) {
-				log.warn("Cannot acquire game date for gameId -> " + gameId);
-				return;
-			}
-
-			String homeTeamId = acquireTeamId(doc, "Gamestrip__Team--home");
-			if (homeTeamId == null || homeTeamId.trim().length() == 0) {
-				log.warn(gamecastUrl + " -> Cannot acquire the home team id from data-clubhouse-uid attribute value");
-				return;
-			}
-
-			String homeTeamConferenceId = acquireTeamMapValue(homeTeamId, "conferenceId");
-			String homeTeamName = acquireTeamMapValue(homeTeamId, "teamName");
-
-			String roadTeamId = acquireTeamId(doc, "Gamestrip__Team--away");
-			if (roadTeamId == null || roadTeamId.trim().length() == 0) {
-				log.warn(gamecastUrl + " -> Cannot acquire the road team id from data-clubhouse-uid attribute value");
-				return;
-			}
-
-			String roadTeamConferenceId = acquireTeamMapValue(roadTeamId, "conferenceId");
-			String roadTeamName = acquireTeamMapValue(roadTeamId, "teamName");
-
-			String title = roadTeamName.compareTo("") == 0 ? "NA"
-					: roadTeamName /**/
-							+ " (" /**/
-							+ (roadTeamConferenceId.compareTo("") == 0 ? "NA" : DataProcessor.getConferenceMap().get(Integer.valueOf(roadTeamConferenceId)).get("shortName") + ")")/**/
-							+ " at " /**/
-							+ (homeTeamId.compareTo("") == 0 ? "NA" : homeTeamName)/**/
-							+ (homeTeamConferenceId.compareTo("") == 0 ? "NA" : " (" + DataProcessor.getConferenceMap().get(Integer.valueOf(homeTeamConferenceId)).get("shortName") + ")");
-
-			log.info(title);
-
-			Element gameInfoElement = GamecastElementProcessor.extractGameInfoElement(doc, gameId);
-			if (gameInfoElement == null) {
-				log.warn("Cannot acquire game info element for gameId -> " + gameId);
-				return;
-			}
-
-			String gameTimeUtc = GamecastElementProcessor.extractGametime(gameInfoElement);
-			String networkCoverage = GamecastElementProcessor.extractNetworkCoverages(gameInfoElement);
-			String gameAttendance = GamecastElementProcessor.extractAttendance(gameInfoElement);
-			String venueCapacity = GamecastElementProcessor.extractVenueCapacity(gameInfoElement);
-			String venuePercentageFull = GamecastElementProcessor.extractVenuePercentageFull(gameInfoElement);
-			String venueName = GamecastElementProcessor.extractVenueName(gameInfoElement);
-			String venueCity = GamecastElementProcessor.extractVenueCity(gameInfoElement);
-			String venueState = GamecastElementProcessor.extractVenueState(gameInfoElement);
-			String referees = GamecastElementProcessor.extractReferees(gameInfoElement);
-			String status = GamecastElementProcessor.extractGameStatus(doc);
-
-			String idValue = gameId + homeTeamId + homeTeamConferenceId + roadTeamId + roadTeamConferenceId;
-
-			String data = "[id]=" + idValue /**/
-					+ ",[status]=" + status/**/
-					+ ",[gameId]=" + gameId/**/
-					+ ",[homeTeamId]=" + homeTeamId/**/
-					+ ",[homeTeamConferenceId]=" + homeTeamConferenceId/**/
-					+ ",[roadTeamId]=" + roadTeamId/**/
-					+ ",[roadTeamConferenceId]=" + roadTeamConferenceId/**/
-					+ ",[gameTimeUTC]=" + gameTimeUtc/**/
-					+ ",[networkCoverage]=" + networkCoverage/**/
-					+ ",[venueName]=" + venueName/**/
-					+ ",[venueCity]=" + venueCity /**/
-					+ ",[venueState]=" + venueState/**/
-					+ ",[venueCapacity]=" + venueCapacity /**/
-					+ ",[gameAttendance]=" + gameAttendance/**/
-					+ ",[gamePercentageFull]=" + venuePercentageFull/**/
-					+ ",[referees]=" + referees/**/
-			;
-
-			log.info(data);
-		} catch (Exception e) {
-			throw e;
-		}
-	}
-
 	public static String acquireTeamId(Document doc, String className) throws Exception {
 
 		try {
@@ -206,7 +110,7 @@ public class GamecastProcessor {
 
 	public static String acquireTeamMapValue(String teamId, String key) throws Exception {
 		try {
-			Map<String, String> map = DataProcessor.getTeamMap().get(Integer.valueOf(teamId));
+			Map<String, String> map = ConferenceTeamPlayerService.getTeamMap().get(Integer.valueOf(teamId));
 			if (map == null) {
 				log.warn("Cannot acquire map for teamId = " + teamId);
 				return "";
