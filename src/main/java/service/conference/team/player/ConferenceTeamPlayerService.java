@@ -24,8 +24,9 @@ import utils.StringUtils;
 
 public class ConferenceTeamPlayerService {
 
-	private static String BASE_OUTPUT_PATH;
+	private static String PROJECT_PATH_OUTPUT_DATA;
 	private static String ESPN_HOME;
+	private static String ESPN_TEAM_ROSTER_URL;
 	private static String SEASON;
 	private static Integer id = null;
 
@@ -42,12 +43,13 @@ public class ConferenceTeamPlayerService {
 	static {
 		try {
 			ESPN_HOME = ConfigUtils.getESPN_HOME();
-			BASE_OUTPUT_PATH = ConfigUtils.getProperty("project.path.output.data");
+			ESPN_TEAM_ROSTER_URL = ConfigUtils.getProperty("espn.com.womens.team.roster.page");
+			PROJECT_PATH_OUTPUT_DATA = ConfigUtils.getProperty("project.path.output.data");
 			SEASON = ConfigUtils.getProperty("season");
 
-			conferenceFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.conferences.txt");
-			teamFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.teams.txt");
-			playerFile = BASE_OUTPUT_PATH + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.players.txt");
+			conferenceFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.conferences.txt");
+			teamFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.teams.txt");
+			playerFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.players.txt");
 
 			conferenceMap = new HashMap<>();
 			teamMap = new HashMap<>();
@@ -61,7 +63,7 @@ public class ConferenceTeamPlayerService {
 
 	public static void go() throws Exception {
 		try {
-			generateConferenceTeamFiles();
+			// generateConferenceTeamFiles();
 			generatePlayerFile();
 			return;
 		} catch (Exception e) {
@@ -80,6 +82,131 @@ public class ConferenceTeamPlayerService {
 	}
 
 	private static void generatePlayerFile() throws Exception {
+		try (BufferedWriter playerWriter = new BufferedWriter(new FileWriter(playerFile, false));) {
+			loadDataFiles(false); // loads conferences and teams only
+
+			for (Integer teamId : teamMap.keySet()) {
+				String rosterUrl = ESPN_TEAM_ROSTER_URL + String.valueOf(teamId);
+				log.info(rosterUrl + " -> " + teamMap.get(teamId));
+
+				Document rosterDoc = JsoupUtils.acquire(rosterUrl);
+				if (rosterDoc == null) {
+					log.warn(rosterUrl + " -> " + "We cannot acquire the roster document");
+					continue;
+				}
+
+				Elements rosterEls = JsoupUtils.nullElementCheck(rosterDoc.getElementsByAttributeValue("class", "ResponsiveTable Team Roster"));
+				if (rosterEls == null) {
+					log.warn(rosterUrl + " -> " + "Cannot acquire the roster elements");
+					continue;
+				}
+
+				Element rosterEl = rosterEls.first();
+
+				Elements playerTrs = JsoupUtils.nullElementCheck(rosterEl.getElementsByAttribute("data-idx"));
+				if (playerTrs == null) {
+					log.warn(rosterUrl + " -> " + "Cannot acquire the player table rows");
+					continue;
+				}
+
+				for (Element playerTr : playerTrs) {
+					Elements playerTds = JsoupUtils.nullElementCheck(playerTr.getElementsByTag("td"));
+					if (playerTds == null || playerTds.size() != 5) {
+						log.warn(rosterUrl + " -> " + "Cannot acquire the td elements for this player");
+						break;
+					}
+
+					String playerUrl = playerTds.get(0).getElementsByTag("a").first().attr("href");
+					String playerId = Arrays.asList(playerUrl.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).findFirst().get();
+
+					String completePlayerName = playerTds.get(0).getElementsByTag("a").first().text();
+					String[] firstMiddleLastTokens = completePlayerName.split(" ");
+					if (firstMiddleLastTokens == null || firstMiddleLastTokens.length < 2) {
+						log.warn(rosterUrl + " -> " + "Cannot acquire the name of this player ");
+						break;
+					}
+
+					String playerFirstName = "";
+					String playerMiddleName = "";
+					String playerLastName = "";
+
+					playerFirstName = firstMiddleLastTokens[0].trim();
+					if (firstMiddleLastTokens.length == 2) {
+						playerLastName = firstMiddleLastTokens[1].trim();
+					} else if (firstMiddleLastTokens.length == 3) {
+						playerMiddleName = firstMiddleLastTokens[1].trim();
+						playerLastName = firstMiddleLastTokens[2].trim();
+					} else {
+						log.warn("What is this? " + firstMiddleLastTokens.toString());
+					}
+
+					String playerNumber = "";
+					Elements playerNumberEls = JsoupUtils.nullElementCheck(playerTds.get(0).getElementsByTag("span"));
+					if (playerNumberEls == null) {
+						log.warn(completePlayerName + " -> Cannot acquire player number");
+					} else {
+						playerNumber = playerNumberEls.first().text();
+					}
+					String playerPosition = playerTds.get(1).getElementsByTag("div").first().text();
+
+					String heightFeet = "";
+					String heightInches = "";
+					String heightCm = "";
+					String heightData = playerTds.get(2).getElementsByTag("div").first().text();
+					String[] heightTokens = heightData.split(" ");
+					if (heightTokens == null || heightTokens.length != 2) {
+						log.warn(playerId + " -> Cannot acquire player height");
+					} else {
+						heightFeet = heightTokens[0].replace("\'", "").trim();
+						heightInches = heightTokens[1].replace("\"", "").trim();
+						heightCm = StringUtils.inchesToCentimeters(heightFeet, heightInches);
+					}
+
+					String classYear = playerTds.get(3).getElementsByTag("div").first().text();
+
+					String homeCity = "";
+					String homeState = "";
+
+					String[] cityStateTokens = playerTds.get(4).getElementsByTag("div").first().text().split(", ");
+					if (cityStateTokens == null || cityStateTokens.length != 2) {
+						log.warn(playerId + " -> Cannot acquire player home city and state");
+					} else {
+						homeCity = cityStateTokens[0];
+						homeState = cityStateTokens[1];
+					}
+
+					// log.info(playerId + " -> " + playerNumber + " " + playerPosition + " " +
+					// playerFirstName + " " + playerMiddleName + " " + playerLastName/**/
+					// + " " + heightFeet + "\'" + " " + heightInches + "\"" + " " + heightCm + "cm"
+					// + " " + homeCity + ", " + homeState + " " + playerUrl);
+
+					String data = "[id]=" + playerId /**/
+							+ ",[teamId]=" + teamId/**/
+							+ ",[playerUrl]=" + playerUrl/**/
+							+ ",[playerName]=" + completePlayerName/**/
+							+ ",[playerFirstName]=" + playerFirstName/**/
+							+ ",[playerMiddleName]=" + (playerMiddleName.trim().length() == 0 ? "" : playerMiddleName)/**/
+							+ ",[playerLastName]=" + playerLastName.trim()/**/
+							+ ",[uniformNumber]=" + playerNumber/**/
+							+ ",[position]=" + playerPosition/**/
+							+ ",[heightFeet]=" + heightFeet/**/
+							+ ",[heightInches]=" + heightInches/**/
+							+ ",[heightCm]=" + heightCm/**/
+							+ ",[classYear]=" + classYear/**/
+							+ ",[homeCity]=" + homeCity/**/
+							+ ",[homeState]=" + homeState/**/
+					;
+
+					playerWriter.write(data + "\n");
+					log.info(data);
+				}
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	private static void generatePlayerFileBruteForceMethod() throws Exception {
 		try {
 			PlayerLookupProcessor.go(SEASON);
 		} catch (Exception e) {
@@ -186,7 +313,23 @@ public class ConferenceTeamPlayerService {
 		return conferenceFile;
 	}
 
-	public static void loadDataFiles() throws Exception {
+	public static void loadDataFiles(boolean includePlayers) throws Exception {
+
+		try {
+			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);
+			teamMap = fileDataToMap(FileUtils.readFileLines(teamFile), false);
+
+			if (includePlayers) {
+				loadPlayerFile();
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+
+		return;
+	}
+
+	public static void loadPlayerFile() throws Exception {
 
 		try {
 			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);

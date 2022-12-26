@@ -3,7 +3,9 @@ package process.historical;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.commons.lang3.math.NumberUtils;
@@ -35,11 +37,15 @@ public class PlayerLookupProcessor {
 	private static String playerNumber;
 	private static String position;
 
+	private static List<Integer> specialIds = new ArrayList<>();
+
 	private static Logger log = Logger.getLogger(PlayerLookupProcessor.class);
 
 	static {
 		try {
 			ESPN_WBB_HOME_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
+			specialIds.add(6961);
+			specialIds.add(12038);
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
@@ -82,13 +88,21 @@ public class PlayerLookupProcessor {
 
 			for (int playerId = startId; playerId < endId; ++playerId) {
 				read(String.valueOf(playerId), playerFileWriter, playerNotFoundFileWriter);
+				playerFileWriter.flush();
+				playerNotFoundFileWriter.flush();
+			}
+
+			for (Integer specialId : specialIds) {
+				read(String.valueOf(specialId.intValue()), playerFileWriter, playerNotFoundFileWriter);
+				playerFileWriter.flush();
+				playerNotFoundFileWriter.flush();
 			}
 		} catch (Exception e) {
 			throw e;
 		}
 	}
 
-	private static void read(String playerId, BufferedWriter playerFileWriter, BufferedWriter playerNotFoundFileWriter) throws Exception {
+	public static void read(String playerId, BufferedWriter playerFileWriter, BufferedWriter playerNotFoundFileWriter) throws Exception {
 
 		try {
 			Thread.sleep(150l);
@@ -98,7 +112,7 @@ public class PlayerLookupProcessor {
 			if (document != null) {
 				process(playerId, url, document, playerFileWriter, playerNotFoundFileWriter);
 			} else {
-				playerNotFoundFileWriter.write("No document -> " + url);
+				playerNotFoundFileWriter.write(url + "\n");
 			}
 		} catch (Exception e) {
 			throw e;

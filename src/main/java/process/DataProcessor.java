@@ -80,7 +80,7 @@ public class DataProcessor {
 
 		try {
 			// load conference and team maps (and player maps)
-			ConferenceTeamPlayerService.loadDataFiles();
+			ConferenceTeamPlayerService.loadDataFiles(true);
 
 			Set<String> datesProcessed = extractGameData();
 

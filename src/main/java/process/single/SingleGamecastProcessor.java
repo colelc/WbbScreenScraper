@@ -27,7 +27,7 @@ public class SingleGamecastProcessor {
 				return;
 			}
 
-			ConferenceTeamPlayerService.loadDataFiles();
+			ConferenceTeamPlayerService.loadDataFiles(true);
 			generateGamecastDataSingleUrl(singleGamecastUrl);
 			CumulativeStatsProcessor.generateCumulativeStatsSingleGame(singleGamecastUrl);
 

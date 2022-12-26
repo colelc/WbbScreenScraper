@@ -35,7 +35,7 @@ public class SinglePlaybyplayProcessor {
 				return;
 			}
 
-			ConferenceTeamPlayerService.loadDataFiles();
+			ConferenceTeamPlayerService.loadDataFiles(true);
 			processPlayByPlaySingleGame(singlePlaybyplayUrl);
 
 		} catch (Exception e) {

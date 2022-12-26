@@ -15,7 +15,7 @@ public class RandomPlayerProcessor {
 
 	public static void go() throws Exception {
 		try {
-			ConferenceTeamPlayerService.loadDataFiles();
+			ConferenceTeamPlayerService.loadDataFiles(true);
 			getTheRandomPlayer();
 		} catch (Exception e) {
 			throw e;
