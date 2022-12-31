@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,9 +23,10 @@ import org.apache.log4j.Logger;
 
 import https.service.HttpsClientService;
 
-public class FileUtils {
+public class FileUtilities {
 
-	private static Logger log = Logger.getLogger(FileUtils.class);
+	private static Integer id = null;
+	private static Logger log = Logger.getLogger(FileUtilities.class);
 
 	public static String streamHttpsUrlConnection(HttpsURLConnection httpsUrlConnection, boolean debug) throws Exception {
 
@@ -82,7 +85,7 @@ public class FileUtils {
 
 	public static boolean createFileIfDoesNotExist(String fileName) throws Exception {
 		try {
-			if (!FileUtils.doesFileExist(fileName)) {
+			if (!FileUtilities.doesFileExist(fileName)) {
 				File file = new File(fileName);
 				if (file.createNewFile()) {
 					log.info(fileName + " has been created");
@@ -156,6 +159,76 @@ public class FileUtils {
 		} catch (Exception e) {
 			throw e;
 		}
+	}
+
+	public static Map<String, String> fileDataToMap(String targetFile, String blah) throws Exception {
+
+		Map<String, String> retMap = new HashMap<>();
+
+		try {
+			List<String> dataList = readFileLines(targetFile);
+
+			dataList.forEach(data -> {
+				List<String> attributes = Arrays.asList(data.split(","));
+
+				attributes.forEach(attribute -> {
+					String[] tokens = attribute.replace("[", "").replace("]", "").split("=");
+					if (tokens != null && tokens.length == 2) {
+						retMap.put(tokens[0].toLowerCase().trim(), tokens[1].toLowerCase().trim());
+					} else if (tokens.length == 1) {
+						String key = tokens[0].trim();
+						String value = "";
+						retMap.put(key, value);
+					}
+				});
+			});
+		} catch (Exception e) {
+			throw e;
+		}
+
+		// retMap.forEach((key, value) -> log.info(key + " -> " + value)));
+
+		return retMap;
+	}
+
+	public static Map<Integer, Map<String, String>> fileDataToMap(String targetFile) throws Exception {
+
+		Map<Integer, Map<String, String>> retMap = new HashMap<>();
+
+		try {
+			List<String> dataList = readFileLines(targetFile);
+
+			dataList.forEach(data -> {
+				List<String> attributes = Arrays.asList(data.split(","));
+
+				Map<String, String> map = new HashMap<>();
+
+				attributes.forEach(attribute -> {
+					String[] tokens = attribute.replace("[", "").replace("]", "").split("=");
+					if (tokens != null && tokens.length == 2) {
+						String key = tokens[0].trim();
+						String value = tokens[1].trim();
+
+						if (key.compareTo("id") == 0) {
+							id = Integer.valueOf(value);
+						} else {
+							map.put(key, value);
+						}
+					} else if (tokens.length == 1) {
+						String key = tokens[0].trim();
+						String value = "";
+						map.put(key, value);
+					}
+				});
+				retMap.put(id, map);
+			});
+		} catch (Exception e) {
+			throw e;
+		}
+
+		// retMap.forEach((key, map) -> log.info(key + " -> " + map.toString()));
+
+		return retMap;
 	}
 
 }

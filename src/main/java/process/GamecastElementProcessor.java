@@ -46,7 +46,7 @@ public class GamecastElementProcessor {
 
 	}
 
-	public static String extractReferees(Element gameInfoElement) throws Exception {
+	public static String extractReferees(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -57,7 +57,7 @@ public class GamecastElementProcessor {
 		try {
 			Elements refEls = gameInfoElement.getElementsByAttributeValue("class", "GameInfo__List__Item");
 			if (refEls == null || refEls.size() == 0) {
-				log.warn("Cannot acquire referees");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire referees");
 				return "";
 			}
 
@@ -74,7 +74,7 @@ public class GamecastElementProcessor {
 		return referees;
 	}
 
-	public static String extractVenueState(Element gameInfoElement) throws Exception {
+	public static String extractVenueState(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -85,7 +85,7 @@ public class GamecastElementProcessor {
 		try {
 			Elements els = gameInfoElement.getElementsByAttributeValue("class", "Location__Text");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire venue state");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue state");
 				return "";
 			}
 
@@ -93,7 +93,7 @@ public class GamecastElementProcessor {
 
 			String[] tokens = venueStateElement.text().split(",");
 			if (tokens == null || tokens.length != 2) {
-				log.warn("Cannot acquire venue state");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue state");
 				return "";
 			}
 
@@ -104,7 +104,7 @@ public class GamecastElementProcessor {
 		return venueState;
 	}
 
-	public static String extractVenueCity(Element gameInfoElement) throws Exception {
+	public static String extractVenueCity(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -115,7 +115,7 @@ public class GamecastElementProcessor {
 		try {
 			Elements els = gameInfoElement.getElementsByAttributeValue("class", "Location__Text");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire venue city");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue city");
 				return "";
 			}
 
@@ -123,7 +123,7 @@ public class GamecastElementProcessor {
 
 			String[] tokens = venueCityElement.text().split(",");
 			if (tokens == null || tokens.length != 2) {
-				log.warn("Cannot acquire venue city");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue city");
 				return "";
 			}
 
@@ -134,7 +134,7 @@ public class GamecastElementProcessor {
 		return venueCity;
 	}
 
-	public static String extractVenueName(Element gameInfoElement) throws Exception {
+	public static String extractVenueName(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -148,7 +148,7 @@ public class GamecastElementProcessor {
 				// try another tag
 				els = gameInfoElement.getElementsByClass("GameInfo__Location__Name--noImg");
 				if (els == null || els.first() == null) {
-					log.warn("Cannot acquire venue name");
+					log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue name");
 					return "";
 				}
 			}
@@ -161,7 +161,7 @@ public class GamecastElementProcessor {
 		return venueName;
 	}
 
-	public static String extractVenuePercentageFull(Element gameInfoElement) throws Exception {
+	public static String extractVenuePercentageFull(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -172,7 +172,7 @@ public class GamecastElementProcessor {
 		try {
 			Elements els = gameInfoElement.getElementsByAttributeValue("class", "n3 flex-expand Attendance__Percentage");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire venue percentage full");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue percentage full");
 				return "";
 			}
 
@@ -184,7 +184,7 @@ public class GamecastElementProcessor {
 		return pctFull;
 	}
 
-	public static String extractVenueCapacity(Element gameInfoElement) throws Exception {
+	public static String extractVenueCapacity(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -197,7 +197,7 @@ public class GamecastElementProcessor {
 			if (els == null || els.first() == null) {
 				els = gameInfoElement.getElementsByClass("Attendance__Capacity");
 				if (els == null || els.first() == null) {
-					log.warn("Cannot acquire venue capacity");
+					log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire venue capacity");
 					return "";
 				}
 
@@ -213,7 +213,7 @@ public class GamecastElementProcessor {
 		return capacity;
 	}
 
-	public static String extractAttendance(Element gameInfoElement) throws Exception {
+	public static String extractAttendance(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -224,7 +224,7 @@ public class GamecastElementProcessor {
 		try {
 			Elements els = gameInfoElement.getElementsByAttributeValue("class", "Attendance__Numbers");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire attendance");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire attendance");
 				return "";
 			}
 
@@ -236,7 +236,7 @@ public class GamecastElementProcessor {
 		return attendance;
 	}
 
-	public static String extractNetworkCoverages(Element gameInfoElement) throws Exception {
+	public static String extractNetworkCoverages(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -247,13 +247,13 @@ public class GamecastElementProcessor {
 		try {
 			Elements networkCoverageElements = gameInfoElement.getElementsByAttributeValue("class", "n8 GameInfo__Meta");// .first();
 			if (networkCoverageElements == null || networkCoverageElements.first() == null) {
-				log.warn("Cannot acquire network coverage elements");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire network coverage elements");
 				return "";
 			}
 
 			Elements els = networkCoverageElements.first().getElementsByTag("span");
 			if (els == null || els.first() == null || els.size() < 2) { // don't want first = last
-				log.warn("Cannot acquire network coverages");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire network coverages");
 				return "";
 			}
 
@@ -295,7 +295,10 @@ public class GamecastElementProcessor {
 
 			Element gameDateEl = spanList.get(0);
 
-			List<String> dateElements = Arrays.asList(gameDateEl.text().split("\\,")).stream().filter(f -> !f.contains(":")).collect(Collectors.toList());
+			List<String> dateElements = Arrays.asList(gameDateEl.text().split("\\,")).stream()/**/
+					.filter(f -> !f.contains(":"))/**/
+					.map(m -> m.trim())/**/
+					.collect(Collectors.toList());
 			if (dateElements == null || dateElements.size() != 2) {
 				log.warn("Cannot acquire date elements needed to calculate game date");
 				return null;
@@ -352,7 +355,7 @@ public class GamecastElementProcessor {
 		}
 	}
 
-	public static String extractGametime(Element gameInfoElement) throws Exception {
+	public static String extractGametime(Element gameInfoElement, String gameId, String gameDate) throws Exception {
 		if (gameInfoElement == null) {
 			log.warn("There is no game Info element");
 			return "";
@@ -365,14 +368,14 @@ public class GamecastElementProcessor {
 
 			Elements els = dtElement.getElementsByTag("span");
 			if (els == null || els.first() == null) {
-				log.warn("Cannot acquire game time");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire game time");
 				return "";
 			}
 
 			Element gameTimeEl = els.first();
 			Optional<String> opt = Arrays.asList(gameTimeEl.text().split(",")).stream().filter(f -> f.contains("AM") || f.contains("PM")).findFirst();
 			if (opt.isEmpty()) {
-				log.warn("Cannot acquire game time from game time element");
+				log.warn(gameDate + " -> " + gameId + " " + "Cannot acquire game time from game time element");
 				return "";
 			}
 

@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import org.apache.log4j.Logger;
 
 import utils.ConfigUtils;
-import utils.FileUtils;
+import utils.FileUtilities;
 
 public class PlayerCleanupProcessor {
 
@@ -22,14 +22,14 @@ public class PlayerCleanupProcessor {
 		String allPlayersUrlFile = ConfigUtils.getProperty("project.path.players")/**/
 				+ File.separator + ConfigUtils.getProperty("all.players.url.txt");
 
-		List<String> all = FileUtils.readFileLines(allPlayersUrlFile);
+		List<String> all = FileUtilities.readFileLines(allPlayersUrlFile);
 		log.info(allPlayersUrlFile + " has " + all.size() + " URLs");
 
 		// previously not found
 		String notFoundUrlFile = ConfigUtils.getProperty("project.path.players")/**/
 				+ File.separator + "players_not_found.txt";
 
-		List<String> notFound = FileUtils.readFileLines(notFoundUrlFile);
+		List<String> notFound = FileUtilities.readFileLines(notFoundUrlFile);
 		log.info(notFoundUrlFile + " has " + notFound.size() + " URLs");
 
 		// 503s
@@ -128,7 +128,7 @@ public class PlayerCleanupProcessor {
 					player503FileWriter.write(url + "\n");
 				}
 
-				List<String> other = FileUtils.readFileLines(inputFile)/**/
+				List<String> other = FileUtilities.readFileLines(inputFile)/**/
 						.stream()/**/
 						.filter(f -> !f.contains("No page") && !f.contains("H I T") && !f.contains("503?") && !f.contains("Server returned HTTP response code: 503"))/**/
 						.collect(Collectors.toList());/**/
@@ -152,7 +152,7 @@ public class PlayerCleanupProcessor {
 
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(finalPlayerUrlFile, false))) {
 			for (String dataFile : dataFiles) {
-				for (String url : FileUtils.readFileLines(dataFile)) {
+				for (String url : FileUtilities.readFileLines(dataFile)) {
 					writer.write(url + "\n");
 				}
 			}
@@ -166,7 +166,7 @@ public class PlayerCleanupProcessor {
 	private static List<String> filterTempFile(String playerUrlFile, String targetString) throws Exception {
 
 		try {
-			return FileUtils.readFileLines(playerUrlFile)/**/
+			return FileUtilities.readFileLines(playerUrlFile)/**/
 					.stream()/**/
 					.filter(f -> f.contains(targetString))/**/
 					.map(m -> m.split(" ")[6])/**/

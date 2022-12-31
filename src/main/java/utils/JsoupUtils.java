@@ -95,9 +95,9 @@ public class JsoupUtils {
 				log.info(url + " -> No page");
 				return null;
 			} catch (Exception e) {
-				log.info(url + " -> a 503?");
+				// log.info(url + " -> a 503?");
 				log.error(e.getMessage());
-				Thread.sleep(15000l);
+				Thread.sleep(60000l);
 			} // try catch
 		} // while
 		return null;

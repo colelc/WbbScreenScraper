@@ -1,11 +1,10 @@
-package service.conference.team.player;
+package service;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -18,7 +17,7 @@ import org.jsoup.select.Elements;
 
 import process.historical.PlayerLookupProcessor;
 import utils.ConfigUtils;
-import utils.FileUtils;
+import utils.FileUtilities;
 import utils.JsoupUtils;
 import utils.StringUtils;
 
@@ -28,7 +27,6 @@ public class ConferenceTeamPlayerService {
 	private static String ESPN_HOME;
 	private static String ESPN_TEAM_ROSTER_URL;
 	private static String SEASON;
-	private static Integer id = null;
 
 	private static String conferenceFile;
 	private static String teamFile;
@@ -47,9 +45,15 @@ public class ConferenceTeamPlayerService {
 			PROJECT_PATH_OUTPUT_DATA = ConfigUtils.getProperty("project.path.output.data");
 			SEASON = ConfigUtils.getProperty("season");
 
-			conferenceFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.conferences.txt");
-			teamFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.teams.txt");
-			playerFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.players.txt");
+			String conferenceTeamPlayerDir = (ConfigUtils.getProperty("project.path.conference.team.player")).replace("_SEASON_", SEASON);
+			conferenceFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.conferences.txt");
+			teamFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.teams.txt");
+			playerFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.players.txt");
+
+			log.info("Season ->          " + SEASON);
+			log.info("Conference file -> " + conferenceFile);
+			log.info("Team file ->       " + teamFile);
+			log.info("Player file ->     " + playerFile);
 
 			conferenceMap = new HashMap<>();
 			teamMap = new HashMap<>();
@@ -134,8 +138,13 @@ public class ConferenceTeamPlayerService {
 					if (firstMiddleLastTokens.length == 2) {
 						playerLastName = firstMiddleLastTokens[1].trim();
 					} else if (firstMiddleLastTokens.length == 3) {
-						playerMiddleName = firstMiddleLastTokens[1].trim();
-						playerLastName = firstMiddleLastTokens[2].trim();
+						if (!firstMiddleLastTokens[1].trim().contains(".")) {
+							playerMiddleName = firstMiddleLastTokens[1].trim();
+							playerLastName = firstMiddleLastTokens[2].trim();
+						} else {
+							playerMiddleName = "";
+							playerLastName = firstMiddleLastTokens[1].trim() + " " + firstMiddleLastTokens[2].trim();
+						}
 					} else {
 						log.warn("What is this? " + firstMiddleLastTokens.toString());
 					}
@@ -316,8 +325,8 @@ public class ConferenceTeamPlayerService {
 	public static void loadDataFiles(boolean includePlayers) throws Exception {
 
 		try {
-			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);
-			teamMap = fileDataToMap(FileUtils.readFileLines(teamFile), false);
+			conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
+			teamMap = FileUtilities.fileDataToMap(teamFile);
 
 			if (includePlayers) {
 				loadPlayerFile();
@@ -332,53 +341,14 @@ public class ConferenceTeamPlayerService {
 	public static void loadPlayerFile() throws Exception {
 
 		try {
-			conferenceMap = fileDataToMap(FileUtils.readFileLines(conferenceFile), false);
-			teamMap = fileDataToMap(FileUtils.readFileLines(teamFile), false);
-			playerMap = fileDataToMap(FileUtils.readFileLines(playerFile), false);
+			conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
+			teamMap = FileUtilities.fileDataToMap(teamFile);
+			playerMap = FileUtilities.fileDataToMap(playerFile);
 		} catch (Exception e) {
 			throw e;
 		}
 
 		return;
-	}
-
-	private static Map<Integer, Map<String, String>> fileDataToMap(List<String> dataList, boolean debug) throws Exception {
-
-		Map<Integer, Map<String, String>> retMap = new HashMap<>();
-
-		try {
-			dataList.forEach(data -> {
-				List<String> attributes = Arrays.asList(data.split(","));
-
-				Map<String, String> map = new HashMap<>();
-
-				attributes.forEach(attribute -> {
-					String[] tokens = attribute.replace("[", "").replace("]", "").split("=");
-					if (tokens != null && tokens.length == 2) {
-						String key = tokens[0].trim();
-						String value = tokens[1].trim();
-
-						if (key.compareTo("id") == 0) {
-							id = Integer.valueOf(value);
-						} else {
-							map.put(key, value);
-						}
-					} else if (tokens.length == 1) {
-						String key = tokens[0].trim();
-						String value = "";
-						map.put(key, value);
-					}
-				});
-				retMap.put(id, map);
-			});
-		} catch (Exception e) {
-			throw e;
-		}
-
-		// if (debug) {
-		// retMap.forEach((key, map) -> log.info(key + " -> " + map.toString()));
-		// }
-		return retMap;
 	}
 
 	public static String getAConferenceId(String teamId) throws Exception {

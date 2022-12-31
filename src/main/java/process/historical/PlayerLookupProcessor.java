@@ -37,6 +37,8 @@ public class PlayerLookupProcessor {
 	private static String playerNumber;
 	private static String position;
 
+	private static boolean processingSinglePlayer = false;
+
 	private static List<Integer> specialIds = new ArrayList<>();
 
 	private static Logger log = Logger.getLogger(PlayerLookupProcessor.class);
@@ -61,6 +63,7 @@ public class PlayerLookupProcessor {
 			if (singlePlayerId == null || singlePlayerId.trim().length() == 0) {
 				lookups();
 			} else {
+				processingSinglePlayer = true;
 				processSinglePlayer(singlePlayerId);
 			}
 		} catch (Exception e) {
@@ -127,10 +130,17 @@ public class PlayerLookupProcessor {
 			BufferedWriter playerNotFoundFileWriter) throws Exception {
 
 		try {
-			String teamId = calculateTeamId(document);
+			String teamId = null;
+			if (!processingSinglePlayer) {
+				teamId = calculateTeamId(document);
+			} else {
+				teamId = calculateTeamIdWithoutSeason(document);
+			}
 			if (teamId == null) {
 				log.warn(url + " -> Cannot calculate teamId");
-				playerNotFoundFileWriter.write("Cannot calculate teamId -> " + url);
+				if (playerNotFoundFileWriter != null) {
+					playerNotFoundFileWriter.write("Cannot calculate teamId -> " + url);
+				}
 				return;
 			}
 
@@ -168,6 +178,37 @@ public class PlayerLookupProcessor {
 		}
 	}
 
+	private static String calculateTeamIdWithoutSeason(Document document) {
+
+		Elements trEls = document.getElementsByAttributeValue("class", "Table__TR Table__TR--sm Table__even");
+		if (trEls == null || trEls.size() == 0) {
+			// log.warn("Cannot assign a teamId");
+			return null;
+		}
+
+		Optional<Element> anchorOpt = trEls.stream().filter(trEl -> trEl.getElementsByTag("a") != null).findFirst();
+		if (anchorOpt.isEmpty()) {
+			log.warn("Cannot find a team id");
+			return null;
+		}
+
+		Elements anchorEls = anchorOpt.get().getElementsByTag("a");
+		if (anchorEls == null || anchorEls.first() == null) {
+			log.warn("Cannot acquire anchor elements that point to a teamId");
+			return null;
+		}
+
+		Optional<String> teamIdOpt = Arrays.asList(anchorEls.first().attr("href").split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).findFirst();
+		if (teamIdOpt.isEmpty()) {
+			log.warn("Cannot acquire teamId from anchor tag: ");
+			log.warn(anchorOpt.get().toString());
+			return null;
+		}
+
+		// log.info("teamId = " + teamId);
+		return teamIdOpt.get();
+	}
+
 	private static String calculateTeamId(Document document) {
 		String teamId = null;
 
@@ -177,7 +218,7 @@ public class PlayerLookupProcessor {
 			return null;
 		}
 
-		if (!trEls.toString().contains(SEASON)) {
+		if (SEASON != null && !trEls.toString().contains(SEASON)) {
 			// log.warn("There is no data for the " + season + " season for this player");
 			return null;
 		}
@@ -233,7 +274,7 @@ public class PlayerLookupProcessor {
 		playerNumber = "";
 		position = "";
 		Elements els = document.getElementsByAttributeValue("class", "PlayerHeader__Team_Info list flex pt1 pr4 min-w-0 flex-basis-0 flex-shrink flex-grow nowrap");
-		if (els != null && els.first() != null) {
+		if (els == null || els.first() == null) {
 			log.warn("Cannot acquire player position or player number: these will be left blank");
 			return;
 		}
@@ -280,8 +321,13 @@ public class PlayerLookupProcessor {
 		if (firstMiddleLastTokens.length == 2) {
 			playerLastName = firstMiddleLastTokens[1].trim();
 		} else if (firstMiddleLastTokens.length == 3) {
-			playerMiddleName = firstMiddleLastTokens[1].trim();
-			playerLastName = firstMiddleLastTokens[2].trim();
+			if (!firstMiddleLastTokens[1].trim().contains(".")) {
+				playerMiddleName = firstMiddleLastTokens[1].trim();
+				playerLastName = firstMiddleLastTokens[2].trim();
+			} else {
+				playerMiddleName = "";
+				playerLastName = firstMiddleLastTokens[1].trim() + " " + firstMiddleLastTokens[2].trim();
+			}
 		} else {
 			log.warn("What is this? " + firstMiddleLastTokens.toString());
 		}

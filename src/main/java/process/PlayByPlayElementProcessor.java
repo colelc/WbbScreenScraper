@@ -1,6 +1,5 @@
 package process;
 
-import java.io.BufferedWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +13,7 @@ import org.apache.log4j.Logger;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import service.DirtyDataService;
 import utils.CalendarUtils;
 import utils.ConfigUtils;
 import utils.StringUtils;
@@ -22,7 +22,7 @@ public class PlayByPlayElementProcessor {
 
 	private static List<String> skipWords;
 	private static List<String> headacheNames;
-	private static List<String> alreadyFiguredThisOut = new ArrayList<>();
+	// private static List<String> alreadyFiguredThisOut = new ArrayList<>();
 	private static Logger log = Logger.getLogger(PlayByPlayElementProcessor.class);
 
 	static {
@@ -36,8 +36,10 @@ public class PlayByPlayElementProcessor {
 		}
 	}
 
-	protected static List<Integer> extractPlayerIdsForThisPlay(String gameUrl, JsonObject playObj, Map<Integer, Map<String, String>> playerMap, /**/
-			BufferedWriter dirtyDataWriter) throws Exception {
+	protected static List<Integer> extractPlayerIdsForThisPlay(String gameUrl, JsonObject playObj, /**/
+			Map<Integer, Map<String, String>> playerMap, /**/
+			String homeConferenceId, String roadConferenceId, /**/
+			String gameId, String gameDate) throws Exception {
 
 		List<Integer> retList = new ArrayList<>();
 
@@ -53,7 +55,9 @@ public class PlayByPlayElementProcessor {
 		}
 
 		try {
-			List<String> sentences = new ArrayList<>(Arrays.asList(playText.split("\\.")));
+			// List<String> sentences = new
+			// ArrayList<>(Arrays.asList(playText.split("\\.")));
+			List<String> sentences = new ArrayList<>(Arrays.asList(playText.toLowerCase().split("assisted by")));
 
 			for (String sentence : sentences) {
 				List<String> textTokens = Arrays.asList(sentence.split(" ")).stream()/**/
@@ -68,16 +72,20 @@ public class PlayByPlayElementProcessor {
 						return retList;
 					}
 
-					Integer playerId = parsePlayerId(gameUrl, textTokens, playerMap, dirtyDataWriter);
-					if (playerId == null) {
-						;// log.warn("Cannot acquire playerId from tokens -> " + textTokens.toString() +
-							// ", and sentence is -> " + sentence);
-					} else {
+					Integer playerId = parsePlayerId(gameUrl, textTokens, playerMap, gameId, gameDate);
+					if (playerId != null) {
 						retList.add(playerId);
+						continue;
 					}
-				} else {
-					log.warn("No skip words to remove, what is this? " + textTokens.toString());
+
+					if (roadConferenceId == null || roadConferenceId.trim().compareTo("") == 0) {
+						// log.warn("Deliberate skip - this is likely a road team player not in Division
+						// 1: " + textTokens.toString());
+						retList.add(-1);
+					}
+
 				}
+
 			}
 		} catch (Exception e) {
 			throw e;
@@ -85,29 +93,19 @@ public class PlayByPlayElementProcessor {
 		return retList;
 	}
 
-	private static Integer parsePlayerId(String gameUrl, List<String> textTokens, Map<Integer, Map<String, String>> playerMap, BufferedWriter dirtyDataWriter) throws Exception {
+	private static Integer parsePlayerId(String gameUrl, List<String> textTokens, Map<Integer, Map<String, String>> playerMap, String gameId, String gameDate) throws Exception {
 		try {
 			String target = textTokens.stream().collect(Collectors.joining(""));
-			// log.info(target);
-			// log.info(playerMap.toString());
+
 			Optional<Entry<Integer, Map<String, String>>> optEntry = playerMap.entrySet().stream()/**/
-					.filter(idToMap -> nameParse(idToMap, target))/**/
+					.filter(idToMap -> nameParse(idToMap, target, gameId, gameDate))/**/
 					.findFirst();
 
 			if (optEntry.isPresent()) {
-				// String playerId = String.valueOf(optEntry.get().getKey());
-				// log.info(playerId);
 				return optEntry.get().getKey();
-				// return Integer.valueOf(optMap.get().get("playerId"));
 			} else {
-				if (!alreadyFiguredThisOut.contains(textTokens.toString())) {
-					alreadyFiguredThisOut.add(textTokens.toString());
-					log.warn("Cannot acquire playerId: " + textTokens.toString());
-					if (dirtyDataWriter != null) {
-						dirtyDataWriter.write(target + " -> " + gameUrl + "\n");
-					}
-				}
-
+				// log.warn("Cannot acquire playerId: " + target + " -> " + gameUrl);
+				DirtyDataService.getDirtyDataMap().put(target, gameUrl);
 				return null;
 			}
 		} catch (Exception e) {
@@ -147,16 +145,12 @@ public class PlayByPlayElementProcessor {
 		return seconds;
 	}
 
-	private static boolean nameParse(Entry<Integer, Map<String, String>> idToMap, String target) {
+	private static boolean nameParse(Entry<Integer, Map<String, String>> idToMap, String target, String gameId, String gameDate) {
 		// log.info(target + " <---> " + idToMap.toString());
 		String first = idToMap.getValue().get("playerFirstName");
 		String middle = idToMap.getValue().get("playerMiddleName");
 		String last = idToMap.getValue().get("playerLastName");
 		String full = idToMap.getValue().get("playerName");
-
-//		if (target.toLowerCase().endsWith("bond")) {
-//			log.info("");
-//		}
 
 		// try 1st middle last
 		String name = StringUtils.specialCharStripper(first + middle + last);
@@ -174,10 +168,7 @@ public class PlayByPlayElementProcessor {
 		name = StringUtils.specialCharStripper(first + last + middle);
 
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			if (!alreadyFiguredThisOut.contains(target)) {
-				alreadyFiguredThisOut.add(target);
-				log.warn(target + " -> using for " + name);
-			}
+			log.warn(gameDate + " -> " + gameId + " " + target + " -> flipped middle and last names -> " + name);
 			return true;
 		}
 
@@ -185,10 +176,7 @@ public class PlayByPlayElementProcessor {
 		name = StringUtils.specialCharStripper(last + first);
 
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			if (!alreadyFiguredThisOut.contains(target)) {
-				alreadyFiguredThisOut.add(target);
-				log.warn(target + " -> using for " + name);
-			}
+			log.warn(gameDate + " -> " + gameId + " " + target + " -> flipped first and last names -> " + name);
 			return true;
 		}
 
@@ -197,10 +185,7 @@ public class PlayByPlayElementProcessor {
 			name = first.substring(0, 3) + StringUtils.specialCharStripper(middle + last);
 
 			if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-				if (!alreadyFiguredThisOut.contains(target)) {
-					alreadyFiguredThisOut.add(target);
-					log.warn(target + " -> using for " + name);
-				}
+				log.warn(gameDate + " -> " + gameId + " " + target + " -> did fuzzy match on first name -> " + name);
 				return true;
 			}
 		}
@@ -209,10 +194,7 @@ public class PlayByPlayElementProcessor {
 		if (!headacheNames.contains(target)) {
 			name = first.substring(0, 1) + last;
 			if (target.endsWith(last.toLowerCase()) && target.startsWith(first.substring(0, 1).toLowerCase())) {
-				if (!alreadyFiguredThisOut.contains(target)) {
-					alreadyFiguredThisOut.add(target);
-					log.warn(target + " -> using for " + name);
-				}
+				log.warn(gameDate + " -> " + gameId + " " + target + " -> used 1st letter of first name + last name -> " + name);
 				return true;
 			}
 		}
@@ -221,11 +203,7 @@ public class PlayByPlayElementProcessor {
 		name = StringUtils.specialCharStripper(first + middle);
 
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			if (!alreadyFiguredThisOut.contains(target)) {
-				alreadyFiguredThisOut.add(target);
-				log.warn(target + " -> using for " + name);
-			}
-
+			log.warn(gameDate + " -> " + gameId + " " + target + " -> used first +  middle names -> " + name);
 			return true;
 		}
 

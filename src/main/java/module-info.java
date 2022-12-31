@@ -5,6 +5,7 @@ module driver {
 	requires org.apache.commons.lang3;
 	requires java.sql;
 	requires gson;
+	requires org.apache.commons.io;
 
 	// requires com.baeldung.entitymodule;
 	// requires com.baeldung.userdaomodule; using service loader

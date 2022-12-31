@@ -3,6 +3,7 @@ package driver;
 import org.apache.log4j.Logger;
 
 import process.DataProcessor;
+import service.DirtyDataService;
 
 public class ScreenScrapeDriver {
 
@@ -16,6 +17,12 @@ public class ScreenScrapeDriver {
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
+			try {
+				DirtyDataService.restore();
+			} catch (Exception e1) {
+				log.error(e1.getMessage());
+				e1.printStackTrace();
+			}
 		}
 
 		log.info("THIS CONCLUDES ALL SCREEN SCRAPING");

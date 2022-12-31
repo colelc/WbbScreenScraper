@@ -20,10 +20,11 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import service.conference.team.player.ConferenceTeamPlayerService;
+import service.ConferenceTeamPlayerService;
+import service.DirtyDataService;
 import utils.CalendarUtils;
 import utils.ConfigUtils;
-import utils.FileUtils;
+import utils.FileUtilities;
 import utils.JsoupUtils;
 
 public class DataProcessor {
@@ -32,23 +33,29 @@ public class DataProcessor {
 	private static String ESPN_SCOREBOARD_URL;
 	private static String ESPN_WBB_HOME_URL;
 	private static String now;
-	private static String NOT_AVAILABLE = "";
+	// private static String NOT_AVAILABLE = null;
 	private static String PROJECT_PATH_OUTPUT_DATA;
 
 	private static String dateTrackerFile;
-	private static String gameStatOutputFile;
-	private static String playByPlayOutputFile;
-	private static String gamecastOutputFile;
-	private static String cumulativeStatsFile;
-	private static String dirtyDataFile;
-
 	private static Set<String> skipDates;
+
+	private static String gameStatsOutputDirectory;
+	private static String playByPlayOutputDirectory;
+	private static String gamecastOutputDirectory;
+	private static String cumulativeStatsDirectory;
+//	private static String dirtyDataDirectory;
+
+	private static String gameStats;
+	private static String playbyplayStats;
+	private static String gamecastStats;
+	private static String cumulativeStats;
+	// private static String dirtyData;
 
 	private static Logger log = Logger.getLogger(DataProcessor.class);
 
 	static {
 		try {
-			ESPN_SCOREBOARD_URL = ConfigUtils.getProperty("espn.com.womens.scoreboard");
+			ESPN_SCOREBOARD_URL = ConfigUtils.getProperty("espn.com.womens.scoreboard").trim();
 			ESPN_WBB_HOME_URL = ConfigUtils.getProperty("espn.com.womens.college.basketball");
 
 			now = LocalDate.ofInstant(Instant.now(), ZoneId.systemDefault()).toString().replace("-", "");
@@ -57,16 +64,18 @@ public class DataProcessor {
 
 			SEASON = ConfigUtils.getProperty("season");
 
-			gameStatOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.game.stats.txt");
-			playByPlayOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.playbyplay.stats.txt");
-			gamecastOutputFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.gamecast.stats.txt");
+			gameStats = ConfigUtils.getProperty("game.stats");
+			playbyplayStats = ConfigUtils.getProperty("play.by.play.stats");
+			gamecastStats = ConfigUtils.getProperty("gamecast.stats");
+			cumulativeStats = ConfigUtils.getProperty("cumulative.stats");
 
-			cumulativeStatsFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.cumulative.stats.txt");
+			gameStatsOutputDirectory = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + gameStats;
+			playByPlayOutputDirectory = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + playbyplayStats;
+			gamecastOutputDirectory = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + gamecastStats;
+			cumulativeStatsDirectory = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + cumulativeStats;
 
-			dirtyDataFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("dirty.data.txt");
-
-			dateTrackerFile = PROJECT_PATH_OUTPUT_DATA + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.date.tracker.txt");
-			skipDates = (!FileUtils.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtils.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
+			dateTrackerFile = ConfigUtils.getProperty("project.path.date.tracker") + File.separator + SEASON + File.separator + ConfigUtils.getProperty("file.date.tracker.txt");
+			skipDates = (!FileUtilities.createFileIfDoesNotExist(dateTrackerFile)) ? FileUtilities.readFileLines(dateTrackerFile).stream().collect(Collectors.toSet()) : new HashSet<>();
 			skipDates.forEach(d -> log.info(d + " -> " + "will not process this date"));
 
 		} catch (Exception e) {
@@ -85,7 +94,9 @@ public class DataProcessor {
 			Set<String> datesProcessed = extractGameData();
 
 			// capture the dates just processed
-			FileUtils.writeAllLines(dateTrackerFile, datesProcessed, skipDates.size(), true);
+			FileUtilities.writeAllLines(dateTrackerFile, datesProcessed, skipDates.size(), true);
+
+			DirtyDataService.writeOutDirtyDataFile();
 		} catch (Exception e) {
 			throw e;
 		}
@@ -105,7 +116,7 @@ public class DataProcessor {
 
 		List<String> seasonDates = new ArrayList<>(CalendarUtils.generateDates(ConfigUtils.getProperty("season.start.date"), ConfigUtils.getProperty("season.end.date")));
 
-		try (BufferedWriter dirtyDataWriter = new BufferedWriter(new FileWriter(dirtyDataFile, false))) {
+		try {
 
 			for (String gameDate : seasonDates) {
 				if (skipDates.contains(gameDate)) {
@@ -118,17 +129,26 @@ public class DataProcessor {
 					continue;
 				}
 
-				try (BufferedWriter gameStatWriter = new BufferedWriter(new FileWriter(gameStatOutputFile + "_" + gameDate, false));
-						/**/
-						BufferedWriter playByPlayWriter = new BufferedWriter(new FileWriter(playByPlayOutputFile + "_" + gameDate, false));
-						/**/
-						BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastOutputFile + "_" + gameDate, false));
-						/**/
-						BufferedWriter cumulativeWriter = new BufferedWriter(new FileWriter(cumulativeStatsFile + "_" + gameDate, false))) {
+				String endOfFileName = "_" + gameDate + ".txt";
+				String gameStatsFile = gameStatsOutputDirectory + File.separator + gameStats + endOfFileName;
+				String playbyplayFile = playByPlayOutputDirectory + File.separator + playbyplayStats + endOfFileName;
+				String gamecastFile = gamecastOutputDirectory + File.separator + gamecastStats + endOfFileName;
+				String cumulativeFile = cumulativeStatsDirectory + File.separator + cumulativeStats + endOfFileName;
+				// String dirtyDataFile = dirtyDataDirectory + File.separator + dirtyData +
+				// ".txt";
 
-					log.info(gameDate + " -> " + ESPN_SCOREBOARD_URL + gameDate);
+				try (BufferedWriter gameStatWriter = new BufferedWriter(new FileWriter(gameStatsFile, false));
+						/**/
+						BufferedWriter playByPlayWriter = new BufferedWriter(new FileWriter(playbyplayFile, false));
+						/**/
+						BufferedWriter gamecastWriter = new BufferedWriter(new FileWriter(gamecastFile, false));
+						/**/
+						BufferedWriter cumulativeWriter = new BufferedWriter(new FileWriter(cumulativeFile, false))) {
 
-					Document htmlDoc = JsoupUtils.acquire(ESPN_SCOREBOARD_URL + gameDate);
+					String scoreboardUrlForThisDay = ESPN_SCOREBOARD_URL.replace("yyyymmdd", gameDate);
+					log.info(gameDate + " -> " + scoreboardUrlForThisDay);
+
+					Document htmlDoc = JsoupUtils.acquire(scoreboardUrlForThisDay);
 
 					int sequence = -1;
 					Elements gameElements = JsoupUtils.nullElementCheck(htmlDoc.select("div.Scoreboard__Callouts"));
@@ -143,8 +163,6 @@ public class DataProcessor {
 							String gamecastUrl = ESPN_WBB_HOME_URL + "game/_/gameId/" + gameId;
 							String boxscoreUrl = ESPN_WBB_HOME_URL + "boxscore/_/gameId/" + gameId;
 							String playbyplayUrl = ESPN_WBB_HOME_URL + "playbyplay/_/gameId/" + gameId;
-							// log.info("");
-							// log.info("Processing: " + boxscoreUrl);
 
 							// need the team id's
 							Element competitorsElement = JsoupUtils.nullElementCheck(htmlDoc.select("ul.ScoreboardScoreCell__Competitors")).get(sequence);
@@ -166,14 +184,14 @@ public class DataProcessor {
 
 							title = thisRoadTeam /**/
 									+ " (" /**/
-									+ (roadConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA"
+									+ (roadConferenceId == null || roadConferenceId.compareTo("") == 0 ? "**NA**"
 											: ConferenceTeamPlayerService.getConferenceMap().get(Integer.valueOf(roadConferenceId)).get("shortName") + ")")/**/
 									+ " at " /**/
-									+ (homeTeamId.compareTo(NOT_AVAILABLE) == 0 ? "NA" : ConferenceTeamPlayerService.getTeamMap().get(Integer.valueOf(homeTeamId)).get("teamName"))/**/
-									+ (homeConferenceId.compareTo(NOT_AVAILABLE) == 0 ? "NA"
+									+ (homeTeamId == null || homeTeamId.compareTo("") == 0 ? "**NA**" : ConferenceTeamPlayerService.getTeamMap().get(Integer.valueOf(homeTeamId)).get("teamName"))/**/
+									+ (homeConferenceId == null || homeConferenceId.compareTo("") == 0 ? "**NA**"
 											: " (" + ConferenceTeamPlayerService.getConferenceMap().get(Integer.valueOf(homeConferenceId)).get("shortName") + ")");
 
-							log.info(gameDate + " -> " + gameId + " " + title);
+							log.info(gameDate + " -> " + gameId + " " + title + " " + boxscoreUrl);
 
 							GamecastProcessor.generateGamecastData(/**/
 									gamecastUrl, /**/
@@ -189,8 +207,11 @@ public class DataProcessor {
 
 							Document playbyplayDoc = JsoupUtils.acquire(playbyplayUrl);
 							boolean data = PlayByPlayProcessor.processPlayByPlay(playbyplayDoc, boxscoreUrl, gameId, gameDate, /**/
-									homeTeamId, homeConferenceId, roadTeamId, roadConferenceId, /**/
-									playByPlayWriter, dirtyDataWriter);
+									homeTeamId, /**/
+									homeConferenceId, /**/
+									roadTeamId, /**/
+									roadConferenceId, /**/
+									playByPlayWriter);
 
 							if (data) {
 								CumulativeStatsProcessor.generateCumulativeStats(gameStatDoc, gameId, gameDate, cumulativeWriter, /**/
@@ -211,26 +232,26 @@ public class DataProcessor {
 	}
 
 	private static String getAHomeTeamId(Element el) throws Exception {
-		String teamId = NOT_AVAILABLE;
+		String teamId = "";
 
 		try {
 			if (el == null || el.getElementsByTag("li") == null || el.getElementsByTag("li").last() == null) {
 				// log.warn("Cannot acquire a teamId");
-				return teamId;
+				return "";
 			}
 
 			Elements theseElements = el.getElementsByTag("li").last().getElementsByTag("a");
 			if (theseElements == null || theseElements.first() == null) {
 				// log.warn("Cannot acquire a teamId");
 				// log.info(theseElements.toString());
-				return teamId;
+				return "";
 			}
 
 			String teamUrl = theseElements.first().attr("href");
 			if (teamUrl == null) {
 				// log.warn("Cannot acquire a teamId");
 				// log.info(theseElements.first().toString());
-				return teamId;
+				return "";
 			}
 
 			teamId = Arrays.asList(teamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
@@ -239,7 +260,7 @@ public class DataProcessor {
 			} else {
 				// log.warn("Cannot acquire a teamId");
 				// log.info(teamUrl);
-				return NOT_AVAILABLE;
+				return "";
 			}
 		} catch (Exception e) {
 			throw e;
@@ -247,13 +268,13 @@ public class DataProcessor {
 	}
 
 	private static String getARoadTeamId(Element competitorsElement, Elements el) throws Exception {
-		String teamId = NOT_AVAILABLE;
+		String teamId = "";
 
 		try {
 			if (el == null || el.first() == null || el.first().getElementsByTag("a") == null) {
 				// log.warn("el: will not be able to assign team conferenceId and teamId");
 				// log.info(competitorsElement.toString());
-				return teamId;
+				return "";
 			}
 
 			Elements elAnchorElements = el.first().getElementsByTag("a");
@@ -261,14 +282,14 @@ public class DataProcessor {
 				// log.warn("elAnchorElements: will not be able to assign team conferenceId and
 				// teamId");
 				// log.info(el.toString());
-				return teamId;
+				return "";
 			}
 
 			String teamUrl = elAnchorElements.first().getElementsByTag("a").first().attr("href");
 			if (teamUrl == null) {
 				// log.warn("teamUrl: will not be able to assign team conferenceId and teamId");
 				// log.info(elAnchorElements.first().getElementsByTag("a").first().toString());
-				return null;
+				return "";
 			}
 
 			teamId = Arrays.asList(teamUrl.split("/")).stream().filter(f -> StringUtils.isNumeric(f)).collect(Collectors.toList()).get(0);
@@ -276,7 +297,7 @@ public class DataProcessor {
 				// log.warn("teamId extraction from teamUrl: will not be able to assign team
 				// conferenceId and teamId");
 				// log.info(teamUrl);
-				return NOT_AVAILABLE;
+				return "";
 			}
 
 			return teamId;

@@ -13,7 +13,7 @@ import javax.net.ssl.X509TrustManager;
 
 import org.apache.log4j.Logger;
 
-import utils.FileUtils;
+import utils.FileUtilities;
 
 public class HttpsClientService {
 
@@ -68,7 +68,7 @@ public class HttpsClientService {
 	public static String jsoupExtraction(String url) throws Exception {
 		try {
 			url = url.contains("http://") ? url.replace("http://", "https://") : url;
-			String html = FileUtils.streamHttpsUrlConnection(getHttpsURLConnection(url), false);
+			String html = FileUtilities.streamHttpsUrlConnection(getHttpsURLConnection(url), false);
 			return html;
 
 		} catch (Exception e) {

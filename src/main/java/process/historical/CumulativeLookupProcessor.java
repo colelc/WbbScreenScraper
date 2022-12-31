@@ -15,7 +15,7 @@ import org.jsoup.nodes.Document;
 
 import process.CumulativeStatsProcessor;
 import utils.ConfigUtils;
-import utils.FileUtils;
+import utils.FileUtilities;
 import utils.JsoupUtils;
 
 public class CumulativeLookupProcessor {
@@ -117,7 +117,7 @@ public class CumulativeLookupProcessor {
 	public static void collectGamecastData() throws Exception {
 
 		try {
-			Set<String> files = FileUtils.getFileListFromDirectory(GAMECAST_DIRECTORY, "gamecast_stats");
+			Set<String> files = FileUtilities.getFileListFromDirectory(GAMECAST_DIRECTORY, "gamecast_stats");
 
 			files.forEach(file -> {
 				String gameDate = file.split("_")[2];
@@ -125,7 +125,7 @@ public class CumulativeLookupProcessor {
 				log.info(gameDate);
 				log.info("stop");
 				try {
-					gamecastsMap.put(gameDate, FileUtils.readFileLines(GAMECAST_DIRECTORY + File.separator + file));
+					gamecastsMap.put(gameDate, FileUtilities.readFileLines(GAMECAST_DIRECTORY + File.separator + file));
 				} catch (Exception e) {
 					log.error(e.getMessage());
 					e.printStackTrace();

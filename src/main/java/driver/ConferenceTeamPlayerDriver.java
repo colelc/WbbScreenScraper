@@ -2,7 +2,7 @@ package driver;
 
 import org.apache.log4j.Logger;
 
-import service.conference.team.player.ConferenceTeamPlayerService;
+import service.ConferenceTeamPlayerService;
 
 public class ConferenceTeamPlayerDriver {
 

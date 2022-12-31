@@ -10,7 +10,7 @@ import org.jsoup.nodes.Document;
 import process.GamecastElementProcessor;
 import process.GamecastProcessor;
 import process.PlayByPlayProcessor;
-import service.conference.team.player.ConferenceTeamPlayerService;
+import service.ConferenceTeamPlayerService;
 import utils.ConfigUtils;
 import utils.JsoupUtils;
 
@@ -57,7 +57,7 @@ public class SinglePlaybyplayProcessor {
 			String homeTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--home");
 			if (homeTeamId == null || homeTeamId.trim().length() == 0) {
 				log.warn(url + " -> Cannot acquire the home team id from data-clubhouse-uid attribute value");
-				return;
+				// return;
 			}
 
 			String homeTeamConferenceId = GamecastProcessor.acquireTeamMapValue(homeTeamId, "conferenceId");
@@ -65,7 +65,7 @@ public class SinglePlaybyplayProcessor {
 			String roadTeamId = GamecastProcessor.acquireTeamId(doc, "Gamestrip__Team--away");
 			if (roadTeamId == null || roadTeamId.trim().length() == 0) {
 				log.warn(url + " -> Cannot acquire the road team id from data-clubhouse-uid attribute value");
-				return;
+				// return;
 			}
 
 			String roadTeamConferenceId = GamecastProcessor.acquireTeamMapValue(roadTeamId, "conferenceId");
@@ -74,7 +74,7 @@ public class SinglePlaybyplayProcessor {
 					url, /**/
 					gameId, gameDate, /**/
 					homeTeamId, homeTeamConferenceId, roadTeamId, roadTeamConferenceId, /**/
-					null, null);
+					null);
 		} catch (Exception e) {
 			throw e;
 		}

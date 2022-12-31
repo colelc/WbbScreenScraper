@@ -9,7 +9,7 @@ import org.jsoup.nodes.Element;
 import process.CumulativeStatsProcessor;
 import process.GamecastElementProcessor;
 import process.GamecastProcessor;
-import service.conference.team.player.ConferenceTeamPlayerService;
+import service.ConferenceTeamPlayerService;
 import utils.ConfigUtils;
 import utils.JsoupUtils;
 
@@ -91,15 +91,15 @@ public class SingleGamecastProcessor {
 				return;
 			}
 
-			String gameTimeUtc = GamecastElementProcessor.extractGametime(gameInfoElement);
-			String networkCoverage = GamecastElementProcessor.extractNetworkCoverages(gameInfoElement);
-			String gameAttendance = GamecastElementProcessor.extractAttendance(gameInfoElement);
-			String venueCapacity = GamecastElementProcessor.extractVenueCapacity(gameInfoElement);
-			String venuePercentageFull = GamecastElementProcessor.extractVenuePercentageFull(gameInfoElement);
-			String venueName = GamecastElementProcessor.extractVenueName(gameInfoElement);
-			String venueCity = GamecastElementProcessor.extractVenueCity(gameInfoElement);
-			String venueState = GamecastElementProcessor.extractVenueState(gameInfoElement);
-			String referees = GamecastElementProcessor.extractReferees(gameInfoElement);
+			String gameTimeUtc = GamecastElementProcessor.extractGametime(gameInfoElement, gameId, gameDate);
+			String networkCoverage = GamecastElementProcessor.extractNetworkCoverages(gameInfoElement, gameId, gameDate);
+			String gameAttendance = GamecastElementProcessor.extractAttendance(gameInfoElement, gameId, gameDate);
+			String venueCapacity = GamecastElementProcessor.extractVenueCapacity(gameInfoElement, gameId, gameDate);
+			String venuePercentageFull = GamecastElementProcessor.extractVenuePercentageFull(gameInfoElement, gameId, gameDate);
+			String venueName = GamecastElementProcessor.extractVenueName(gameInfoElement, gameId, gameDate);
+			String venueCity = GamecastElementProcessor.extractVenueCity(gameInfoElement, gameId, gameDate);
+			String venueState = GamecastElementProcessor.extractVenueState(gameInfoElement, gameId, gameDate);
+			String referees = GamecastElementProcessor.extractReferees(gameInfoElement, gameId, gameDate);
 			String status = GamecastElementProcessor.extractGameStatus(doc);
 
 			String idValue = gameId + homeTeamId + homeTeamConferenceId + roadTeamId + roadTeamConferenceId;
