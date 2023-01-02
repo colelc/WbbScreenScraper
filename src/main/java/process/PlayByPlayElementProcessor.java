@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.log4j.Logger;
@@ -20,14 +20,12 @@ import utils.StringUtils;
 
 public class PlayByPlayElementProcessor {
 
-	private static List<String> skipWords;
 	private static List<String> headacheNames;
 	// private static List<String> alreadyFiguredThisOut = new ArrayList<>();
 	private static Logger log = Logger.getLogger(PlayByPlayElementProcessor.class);
 
 	static {
 		try {
-			skipWords = Arrays.asList(ConfigUtils.getProperty("play.by.play.skip.words").split(",")).stream().map(m -> m.toLowerCase().trim()).collect(Collectors.toList());
 			headacheNames = Arrays.asList(ConfigUtils.getProperty("player.names.that.give.me.headaches").split(",")).stream().map(m -> m.toLowerCase().trim()).collect(Collectors.toList());
 		} catch (Exception e) {
 			log.error(e.getMessage());
@@ -38,6 +36,7 @@ public class PlayByPlayElementProcessor {
 
 	protected static List<Integer> extractPlayerIdsForThisPlay(String gameUrl, JsonObject playObj, /**/
 			Map<Integer, Map<String, String>> playerMap, /**/
+			List<String> skipWords, /**/
 			String homeConferenceId, String roadConferenceId, /**/
 			String gameId, String gameDate) throws Exception {
 
@@ -55,9 +54,17 @@ public class PlayByPlayElementProcessor {
 		}
 
 		try {
-			// List<String> sentences = new
-			// ArrayList<>(Arrays.asList(playText.split("\\.")));
 			List<String> sentences = new ArrayList<>(Arrays.asList(playText.toLowerCase().split("assisted by")));
+			if (playText.toLowerCase().contains("assisted by")) {
+				String lastSentence = sentences.stream().reduce((first, second) -> second).orElse(null);
+				if (lastSentence == null) {
+					log.warn("Code logic error with dealing with assists in play by play processor");
+				} else {
+					lastSentence = "Assisted by " + lastSentence;
+					sentences.remove(sentences.size() - 1);
+					sentences.add(lastSentence);
+				}
+			}
 
 			for (String sentence : sentences) {
 				List<String> textTokens = Arrays.asList(sentence.split(" ")).stream()/**/
@@ -97,17 +104,31 @@ public class PlayByPlayElementProcessor {
 		try {
 			String target = textTokens.stream().collect(Collectors.joining(""));
 
-			Optional<Entry<Integer, Map<String, String>>> optEntry = playerMap.entrySet().stream()/**/
-					.filter(idToMap -> nameParse(idToMap, target, gameId, gameDate))/**/
-					.findFirst();
+			Set<Integer> candidateSet = playerMap.entrySet().stream()/**/
+					.filter(idToMap -> nameParse(idToMap, target, gameId, gameDate, true))/**/
+					.map(m -> m.getKey())/**/
+					.collect(Collectors.toSet());
 
-			if (optEntry.isPresent()) {
-				return optEntry.get().getKey();
-			} else {
+			if (candidateSet == null || candidateSet.size() == 0) {
 				// log.warn("Cannot acquire playerId: " + target + " -> " + gameUrl);
 				DirtyDataService.getDirtyDataMap().put(target, gameUrl);
 				return null;
 			}
+
+			if (candidateSet.size() == 1) {
+				return candidateSet.stream().reduce((prev, next) -> next).orElse(null);
+			}
+
+			for (Integer playerId : candidateSet) {
+				Entry<Integer, Map<String, String>> thisPlayerMap = playerMap.entrySet().stream().filter(entry -> entry.getKey().compareTo(playerId) == 0).findFirst().get();
+				if (nameParse(thisPlayerMap, target, gameId, gameDate, false)) {
+					log.info("PRECISE MATCH: " + textTokens.toString() + " -> " + thisPlayerMap.toString());
+					return playerId;
+				}
+			}
+
+			log.warn("no player could be identified");
+			return null;
 		} catch (Exception e) {
 			throw e;
 		}
@@ -145,7 +166,7 @@ public class PlayByPlayElementProcessor {
 		return seconds;
 	}
 
-	private static boolean nameParse(Entry<Integer, Map<String, String>> idToMap, String target, String gameId, String gameDate) {
+	private static boolean nameParse(Entry<Integer, Map<String, String>> idToMap, String target, String gameId, String gameDate, boolean includeFuzzyMatch) {
 		// log.info(target + " <---> " + idToMap.toString());
 		String first = idToMap.getValue().get("playerFirstName");
 		String middle = idToMap.getValue().get("playerMiddleName");
@@ -164,11 +185,20 @@ public class PlayByPlayElementProcessor {
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
 			return true;
 		}
-		// try flipping middle and last name
-		name = StringUtils.specialCharStripper(first + last + middle);
 
+		if (includeFuzzyMatch) {
+			if (fuzzyNameParse(target, first, middle, last)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean fuzzyNameParse(String target, String first, String middle, String last) {
+		// try flipping middle and last name
+		String name = StringUtils.specialCharStripper(last + first);
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			log.warn(gameDate + " -> " + gameId + " " + target + " -> flipped middle and last names -> " + name);
+			log.warn("(fuzzy) " + target + " -> flipped middle and last names -> " + last + " " + middle);
 			return true;
 		}
 
@@ -176,7 +206,7 @@ public class PlayByPlayElementProcessor {
 		name = StringUtils.specialCharStripper(last + first);
 
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			log.warn(gameDate + " -> " + gameId + " " + target + " -> flipped first and last names -> " + name);
+			log.warn("(fuzzy) " + target + " -> flipped first and last names -> " + last + " " + first);
 			return true;
 		}
 
@@ -185,7 +215,7 @@ public class PlayByPlayElementProcessor {
 			name = first.substring(0, 3) + StringUtils.specialCharStripper(middle + last);
 
 			if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-				log.warn(gameDate + " -> " + gameId + " " + target + " -> did fuzzy match on first name -> " + name);
+				log.warn("(fuzzy) " + target + " -> did fuzzy match on first name -> " + first + " " + last);
 				return true;
 			}
 		}
@@ -194,7 +224,7 @@ public class PlayByPlayElementProcessor {
 		if (!headacheNames.contains(target)) {
 			name = first.substring(0, 1) + last;
 			if (target.endsWith(last.toLowerCase()) && target.startsWith(first.substring(0, 1).toLowerCase())) {
-				log.warn(gameDate + " -> " + gameId + " " + target + " -> used 1st letter of first name + last name -> " + name);
+				log.warn("(fuzzy) " + target + " -> used 1st letter of first name + last name -> " + first + " " + last);
 				return true;
 			}
 		}
@@ -203,7 +233,7 @@ public class PlayByPlayElementProcessor {
 		name = StringUtils.specialCharStripper(first + middle);
 
 		if (target.toLowerCase().compareTo(name.toLowerCase()) == 0) {
-			log.warn(gameDate + " -> " + gameId + " " + target + " -> used first +  middle names -> " + name);
+			log.warn("(fuzzy) " + target + " -> used first +  middle names -> " + name);
 			return true;
 		}
 

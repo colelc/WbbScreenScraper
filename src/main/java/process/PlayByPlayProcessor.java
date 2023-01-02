@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.log4j.Logger;
@@ -19,10 +20,23 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import service.ConferenceTeamPlayerService;
+import utils.ConfigUtils;
+import utils.StringUtils;
 
 public class PlayByPlayProcessor {
 
+	private static List<String> skipWords;
 	private static Logger log = Logger.getLogger(PlayByPlayProcessor.class);
+
+	static {
+		try {
+			skipWords = Arrays.asList(ConfigUtils.getProperty("play.by.play.skip.words").split(",")).stream().map(m -> m.toLowerCase().trim()).collect(Collectors.toList());
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			e.printStackTrace();
+			System.exit(99);
+		}
+	}
 
 	public static boolean processPlayByPlay(Document doc, /**/
 			String gameUrl, /**/
@@ -67,6 +81,10 @@ public class PlayByPlayProcessor {
 					.filter(entry -> entry.getValue().get("teamId").compareTo(homeTeamId) == 0 || entry.getValue().get("teamId").compareTo(roadTeamId) == 0)/**/
 					.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
 
+			// build out the team name tokens (for eliminating team play by play items)
+			Set<String> teamNameTokens = ConferenceTeamPlayerService.getTeamNamesAsTokens(roadTeamId, homeTeamId);
+
+			// begin to iterate through the play-by-plays, by quarter
 			List<String> quarters = Arrays.asList(scriptData.substring(playGrpsIx + 12).split("]")).stream().limit(4l).collect(Collectors.toList());
 			for (String quarter : quarters) {
 				if (quarter.trim().length() < 10) {
@@ -85,14 +103,28 @@ public class PlayByPlayProcessor {
 					}
 
 					JsonObject playObj = play.getAsJsonObject();
+					// log.info(playObj.toString());
 					// playObj.keySet().forEach(k -> log.info(k + " -> " + playObj.get(k)));
 					List<Integer> playerIdList = PlayByPlayElementProcessor.extractPlayerIdsForThisPlay(gameUrl, playObj, /**/
 							players, /**/
+							skipWords, /**/
 							homeTeamConferenceId, roadTeamConferenceId, /**/
 							gameId, gameDate);
+
 					if (playerIdList == null || playerIdList.size() == 0) {
-						log.warn("Cannot identify players associated with a play: " + playObj.get("text"));
-						break;
+
+						Set<String> playTokens = Arrays.asList(playObj.get("text").getAsString().split(" ")).stream()/**/
+								.map(m -> StringUtils.specialCharStripper(m).toLowerCase().trim())/**/
+								.filter(f -> f.trim().length() > 0)/**/
+								.collect(Collectors.toSet());
+
+						playTokens.removeAll(teamNameTokens);
+						playTokens.removeAll(skipWords);
+						if (!playTokens.isEmpty()) {
+							log.warn("Cannot identify players associated with a play: " + playObj.get("text"));
+						}
+						// break;
+						continue;
 					}
 					String seconds = PlayByPlayElementProcessor.extractSeconds(playObj);
 					String playerText = playObj.get("text").getAsString();
@@ -110,7 +142,7 @@ public class PlayByPlayProcessor {
 									+ ",[roadTeamId]=" + roadTeamId.trim()/**/
 									+ ",[roadTeamConferenceId]=" + roadTeamConferenceId.trim()/**/
 									+ ",[seconds]=" + seconds/**/
-									+ ",[playerId]= " + playerIdString/**/
+									+ ",[playerId]=" + playerIdString/**/
 									+ ",[play]=" + playerText/**/
 							;
 							if (writer != null) {

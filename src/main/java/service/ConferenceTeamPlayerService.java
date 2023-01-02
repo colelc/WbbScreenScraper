@@ -5,8 +5,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.math.NumberUtils;
@@ -23,7 +25,7 @@ import utils.StringUtils;
 
 public class ConferenceTeamPlayerService {
 
-	private static String PROJECT_PATH_OUTPUT_DATA;
+	// private static String PROJECT_PATH_OUTPUT_DATA;
 	private static String ESPN_HOME;
 	private static String ESPN_TEAM_ROSTER_URL;
 	private static String SEASON;
@@ -35,6 +37,9 @@ public class ConferenceTeamPlayerService {
 	private static Map<Integer, Map<String, String>> conferenceMap;
 	private static Map<Integer, Map<String, String>> teamMap;
 	private static Map<Integer, Map<String, String>> playerMap;
+	private static Set<String> teamNamesList;
+	private static String homeTeamId;
+	private static String roadTeamId;
 
 	private static Logger log = Logger.getLogger(ConferenceTeamPlayerService.class);
 
@@ -42,7 +47,8 @@ public class ConferenceTeamPlayerService {
 		try {
 			ESPN_HOME = ConfigUtils.getESPN_HOME();
 			ESPN_TEAM_ROSTER_URL = ConfigUtils.getProperty("espn.com.womens.team.roster.page");
-			PROJECT_PATH_OUTPUT_DATA = ConfigUtils.getProperty("project.path.output.data");
+			// PROJECT_PATH_OUTPUT_DATA =
+			// ConfigUtils.getProperty("project.path.output.data");
 			SEASON = ConfigUtils.getProperty("season");
 
 			String conferenceTeamPlayerDir = (ConfigUtils.getProperty("project.path.conference.team.player")).replace("_SEASON_", SEASON);
@@ -55,9 +61,9 @@ public class ConferenceTeamPlayerService {
 			log.info("Team file ->       " + teamFile);
 			log.info("Player file ->     " + playerFile);
 
-			conferenceMap = new HashMap<>();
-			teamMap = new HashMap<>();
-			playerMap = new HashMap<>();
+			// conferenceMap = new HashMap<>();
+			// teamMap = new HashMap<>();
+			// playerMap = new HashMap<>();
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			e.printStackTrace();
@@ -325,8 +331,13 @@ public class ConferenceTeamPlayerService {
 	public static void loadDataFiles(boolean includePlayers) throws Exception {
 
 		try {
-			conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
-			teamMap = FileUtilities.fileDataToMap(teamFile);
+			if (conferenceMap == null) {
+				conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
+			}
+
+			if (teamMap == null) {
+				teamMap = FileUtilities.fileDataToMap(teamFile);
+			}
 
 			if (includePlayers) {
 				loadPlayerFile();
@@ -341,9 +352,17 @@ public class ConferenceTeamPlayerService {
 	public static void loadPlayerFile() throws Exception {
 
 		try {
-			conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
-			teamMap = FileUtilities.fileDataToMap(teamFile);
-			playerMap = FileUtilities.fileDataToMap(playerFile);
+			if (conferenceMap == null) {
+				conferenceMap = FileUtilities.fileDataToMap(conferenceFile);
+			}
+
+			if (teamMap == null) {
+				teamMap = FileUtilities.fileDataToMap(teamFile);
+			}
+
+			if (playerMap == null) {
+				playerMap = FileUtilities.fileDataToMap(playerFile);
+			}
 		} catch (Exception e) {
 			throw e;
 		}
@@ -381,11 +400,62 @@ public class ConferenceTeamPlayerService {
 	}
 
 	public static Map<Integer, Map<String, String>> getTeamMap() {
+		try {
+			if (teamMap == null) {
+				loadDataFiles(false);
+			}
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			e.printStackTrace();
+			System.exit(99);
+		}
 		return teamMap;
 	}
 
 	public static Map<Integer, Map<String, String>> getPlayerMap() {
 		return playerMap;
+	}
+
+	public static Set<String> getTeamNamesList() {
+		if (teamNamesList != null) {
+			return teamNamesList;
+		}
+
+		teamNamesList = new HashSet<>(teamMap.values().stream().map(m -> m.get("teamName")).collect(Collectors.toSet()));
+		return teamNamesList;
+	}
+
+	public static Set<String> getTeamNamesAsTokens(String roadId, String homeId) {
+		Set<String> retTokens = new HashSet<>();
+
+		if (roadId == null) {
+			roadTeamId = "";
+		} else {
+			roadTeamId = roadId;
+		}
+
+		if (homeId == null) {
+			homeTeamId = "";
+		} else {
+			homeTeamId = homeId;
+		}
+
+		// getTeamMap().forEach((k, v) -> log.info(k + " -> " + v.toString()));
+		// log.info("homeTeamId = " + homeTeamId);
+		// log.info("roadTeamId = " + roadTeamId);
+
+		Set<String> teams = getTeamMap().entrySet().stream()/**/
+				.filter(entry -> String.valueOf(entry.getKey()).compareTo(homeTeamId) == 0 || String.valueOf(entry.getKey()).compareTo(roadTeamId) == 0)/**/
+				.map(entry -> entry.getValue().get("teamName").toLowerCase().trim())/**/
+				.collect(Collectors.toSet());
+
+		for (String teamToken : teams) {
+			for (String token : Arrays.asList(teamToken.split(" "))) {
+				retTokens.add(token.trim());
+			}
+		}
+
+		return retTokens;
 	}
 
 }
