@@ -113,7 +113,14 @@ public class PlayByPlayProcessor {
 
 					if (playerIdList == null || playerIdList.size() == 0) {
 
-						Set<String> playTokens = Arrays.asList(playObj.get("text").getAsString().split(" ")).stream()/**/
+						JsonElement playText = playObj.get("text");
+						if (playText == null) {
+							log.info("no play text - we will skip this play-by-play entry:");
+							log.info(playObj.toString());
+							continue;
+						}
+
+						Set<String> playTokens = Arrays.asList(playText.getAsString().split(" ")).stream()/**/
 								.map(m -> StringUtils.specialCharStripper(m).toLowerCase().trim())/**/
 								.filter(f -> f.trim().length() > 0)/**/
 								.collect(Collectors.toSet());

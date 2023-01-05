@@ -132,38 +132,6 @@ public class PlayByPlayElementProcessor {
 		} catch (Exception e) {
 			throw e;
 		}
-
-	}
-
-	protected static String extractSeconds(JsonObject playObj) throws Exception {
-		String seconds = null;
-		try {
-			// have to also know in what quarter of the game this play took place
-			JsonElement periodEl = playObj.get("period");
-			if (periodEl == null) {
-				log.warn("Cannot acquire quarter in which a play took place.");
-				return null;
-			}
-			JsonObject periodObj = periodEl.getAsJsonObject();
-			int quarter = periodObj.get("number").getAsInt();
-
-			// now get the clock display at the time of play
-			JsonElement clockEl = playObj.get("clock");// .getAsJsonObject();
-			if (clockEl == null) {
-				log.warn("Cannot acquire time of play in play-by-play extraction");
-				return null;
-			}
-
-			JsonObject clockObj = clockEl.getAsJsonObject();
-			String hhmm = clockObj.get("displayValue").getAsString();
-
-			// and calculate
-			seconds = String.valueOf(CalendarUtils.playByPlayTimeTranslation(hhmm, quarter));
-		} catch (Exception e) {
-
-			throw e;
-		}
-		return seconds;
 	}
 
 	private static boolean nameParse(Entry<Integer, Map<String, String>> idToMap, String target, String gameId, String gameDate, boolean includeFuzzyMatch) {
@@ -189,6 +157,9 @@ public class PlayByPlayElementProcessor {
 		if (includeFuzzyMatch) {
 			if (fuzzyNameParse(target, first, middle, last)) {
 				return true;
+			} else {
+				// put back in the play tokens? try again?
+				// log.warn(idToMap.toString());
 			}
 		}
 		return false;
@@ -238,6 +209,37 @@ public class PlayByPlayElementProcessor {
 		}
 
 		return false;
+	}
+
+	protected static String extractSeconds(JsonObject playObj) throws Exception {
+		String seconds = null;
+		try {
+			// have to also know in what quarter of the game this play took place
+			JsonElement periodEl = playObj.get("period");
+			if (periodEl == null) {
+				log.warn("Cannot acquire quarter in which a play took place.");
+				return null;
+			}
+			JsonObject periodObj = periodEl.getAsJsonObject();
+			int quarter = periodObj.get("number").getAsInt();
+
+			// now get the clock display at the time of play
+			JsonElement clockEl = playObj.get("clock");// .getAsJsonObject();
+			if (clockEl == null) {
+				log.warn("Cannot acquire time of play in play-by-play extraction");
+				return null;
+			}
+
+			JsonObject clockObj = clockEl.getAsJsonObject();
+			String hhmm = clockObj.get("displayValue").getAsString();
+
+			// and calculate
+			seconds = String.valueOf(CalendarUtils.playByPlayTimeTranslation(hhmm, quarter));
+		} catch (Exception e) {
+
+			throw e;
+		}
+		return seconds;
 	}
 
 }
