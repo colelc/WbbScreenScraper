@@ -68,8 +68,13 @@ public class ConfigUtils {
 //		return BASE_OUTPUT_PATH;
 //	}
 
-	public static String getESPN_HOME() {
-		return ESPN_HOME;
+	public static String getESPN_HOME() throws Exception {
+		try {
+			return getProperty("espn.home");
+		} catch (Exception e) {
+			throw e;
+		}
+		// return ESPN_HOME;
 	}
 
 }

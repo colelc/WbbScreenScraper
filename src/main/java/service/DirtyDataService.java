@@ -27,10 +27,13 @@ public class DirtyDataService {
 			SEASON = ConfigUtils.getProperty("season");
 
 			dirtyData = ConfigUtils.getProperty("dirty.data");
-			dirtyDataFile = PROJECT_PATH_OUTPUT_DATA /**/
+			String dirtyDataDirectory = PROJECT_PATH_OUTPUT_DATA /**/
 					+ File.separator + SEASON /**/
-					+ File.separator + dirtyData /**/
-					+ File.separator + dirtyData + ".txt";
+					+ File.separator + dirtyData;
+
+			dirtyDataFile = dirtyDataDirectory + File.separator + dirtyData + ".txt";
+
+			FileUtilities.createDirectoryIfNotExists(dirtyDataDirectory);
 
 			backup = new String(dirtyDataFile.replace(dirtyData + ".txt", "backup.txt"));
 

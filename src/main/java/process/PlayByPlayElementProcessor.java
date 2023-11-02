@@ -192,13 +192,13 @@ public class PlayByPlayElementProcessor {
 		}
 
 		// if first letter of first name + last name ....
-		if (!headacheNames.contains(target)) {
-			name = first.substring(0, 1) + last;
-			if (target.endsWith(last.toLowerCase()) && target.startsWith(first.substring(0, 1).toLowerCase())) {
-				log.warn("(fuzzy) " + target + " -> used 1st letter of first name + last name -> " + first + " " + last);
-				return true;
-			}
-		}
+//		if (!headacheNames.contains(target)) {
+//			name = first.substring(0, 1) + last;
+//			if (target.endsWith(last.toLowerCase()) && target.startsWith(first.substring(0, 1).toLowerCase())) {
+//				log.warn("(fuzzy) " + target + " -> used 1st letter of first name + last name -> " + first + " " + last);
+//				return true;
+//			}
+//		}
 
 		// first + middle
 		name = StringUtils.specialCharStripper(first + middle);

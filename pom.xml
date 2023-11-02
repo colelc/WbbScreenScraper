@@ -69,7 +69,7 @@
 					<configuration>
 						<toolchains>
 							<jdk>
-								<version>1.14</version>
+								<version>1.18</version>
 								<vendor>oracle</vendor>
 							</jdk>
 						</toolchains>
@@ -89,8 +89,8 @@
 	<properties>
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<maven.compiler.source>14</maven.compiler.source>
-	    <maven.compiler.target>14</maven.compiler.target>		
+		<maven.compiler.source>18</maven.compiler.source>
+	    <maven.compiler.target>18</maven.compiler.target>		
 	</properties>
 	
 	<modules>

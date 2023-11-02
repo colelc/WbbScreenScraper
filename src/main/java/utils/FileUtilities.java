@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -81,6 +82,18 @@ public class FileUtilities {
 		}
 
 		return returnText;
+	}
+
+	public static void createDirectoryIfNotExists(String dirName) throws Exception {
+		try {
+			Path dirPath = Paths.get(dirName);
+			if (!Files.exists(dirPath)) {
+				log.info("Creating directory: " + dirName);
+				Files.createDirectory(dirPath);
+			}
+		} catch (Exception e) {
+			throw e;
+		}
 	}
 
 	public static boolean createFileIfDoesNotExist(String fileName) throws Exception {

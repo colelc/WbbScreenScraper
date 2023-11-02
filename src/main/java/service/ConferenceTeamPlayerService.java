@@ -52,6 +52,8 @@ public class ConferenceTeamPlayerService {
 			SEASON = ConfigUtils.getProperty("season");
 
 			String conferenceTeamPlayerDir = (ConfigUtils.getProperty("project.path.conference.team.player")).replace("_SEASON_", SEASON);
+			FileUtilities.createDirectoryIfNotExists(conferenceTeamPlayerDir);
+
 			conferenceFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.conferences.txt");
 			teamFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.teams.txt");
 			playerFile = conferenceTeamPlayerDir + File.separator + ConfigUtils.getProperty("file.players.txt");
@@ -73,9 +75,21 @@ public class ConferenceTeamPlayerService {
 
 	public static void go() throws Exception {
 		try {
-			// generateConferenceTeamFiles();
+			generateConferenceTeamFiles();
 			generatePlayerFile();
 			return;
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public static Map<Integer, Map<String, String>> filterPlayers(String homeTeam, String roadTeam) throws Exception {
+		try {
+			Map<Integer, Map<String, String>> players = getPlayerMap().entrySet().stream()/**/
+					.filter(entry -> entry.getValue().get("teamId").compareTo(homeTeam) == 0 || entry.getValue().get("teamId").compareTo(roadTeam) == 0)/**/
+					.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+
+			return players;
 		} catch (Exception e) {
 			throw e;
 		}
@@ -121,7 +135,7 @@ public class ConferenceTeamPlayerService {
 
 				for (Element playerTr : playerTrs) {
 					Elements playerTds = JsoupUtils.nullElementCheck(playerTr.getElementsByTag("td"));
-					if (playerTds == null || playerTds.size() != 5) {
+					if (playerTds == null || playerTds.size() != 6) {
 						log.warn(rosterUrl + " -> " + "Cannot acquire the td elements for this player");
 						break;
 					}
@@ -129,7 +143,9 @@ public class ConferenceTeamPlayerService {
 					String playerUrl = playerTds.get(0).getElementsByTag("a").first().attr("href");
 					String playerId = Arrays.asList(playerUrl.split("/")).stream().filter(f -> NumberUtils.isCreatable(f)).findFirst().get();
 
-					String completePlayerName = playerTds.get(0).getElementsByTag("a").first().text();
+					// String completePlayerName =
+					// playerTds.get(0).getElementsByTag("a").first().text();
+					String completePlayerName = playerTds.get(0).getElementsByTag("img").attr("title");
 					String[] firstMiddleLastTokens = completePlayerName.split(" ");
 					if (firstMiddleLastTokens == null || firstMiddleLastTokens.length < 2) {
 						log.warn(rosterUrl + " -> " + "Cannot acquire the name of this player ");
@@ -156,18 +172,18 @@ public class ConferenceTeamPlayerService {
 					}
 
 					String playerNumber = "";
-					Elements playerNumberEls = JsoupUtils.nullElementCheck(playerTds.get(0).getElementsByTag("span"));
+					Elements playerNumberEls = JsoupUtils.nullElementCheck(playerTds.get(1).getElementsByTag("span"));
 					if (playerNumberEls == null) {
 						log.warn(completePlayerName + " -> Cannot acquire player number");
 					} else {
 						playerNumber = playerNumberEls.first().text();
 					}
-					String playerPosition = playerTds.get(1).getElementsByTag("div").first().text();
+					String playerPosition = playerTds.get(2).getElementsByTag("div").first().text();
 
 					String heightFeet = "";
 					String heightInches = "";
 					String heightCm = "";
-					String heightData = playerTds.get(2).getElementsByTag("div").first().text();
+					String heightData = playerTds.get(3).getElementsByTag("div").first().text();
 					String[] heightTokens = heightData.split(" ");
 					if (heightTokens == null || heightTokens.length != 2) {
 						log.warn(playerId + " -> Cannot acquire player height");
@@ -177,12 +193,12 @@ public class ConferenceTeamPlayerService {
 						heightCm = StringUtils.inchesToCentimeters(heightFeet, heightInches);
 					}
 
-					String classYear = playerTds.get(3).getElementsByTag("div").first().text();
+					String classYear = playerTds.get(4).getElementsByTag("div").first().text();
 
 					String homeCity = "";
 					String homeState = "";
 
-					String[] cityStateTokens = playerTds.get(4).getElementsByTag("div").first().text().split(", ");
+					String[] cityStateTokens = playerTds.get(5).getElementsByTag("div").first().text().split(", ");
 					if (cityStateTokens == null || cityStateTokens.length != 2) {
 						log.warn(playerId + " -> Cannot acquire player home city and state");
 					} else {
@@ -249,6 +265,9 @@ public class ConferenceTeamPlayerService {
 	}
 
 	private static String generateConferenceTeamDataFiles(Map<String, String> conferenceUrlMap) throws Exception {
+
+		FileUtilities.createFileIfDoesNotExist(conferenceFile);
+		FileUtilities.createFileIfDoesNotExist(teamFile);
 
 		try (BufferedWriter conferenceWriter = new BufferedWriter(new FileWriter(conferenceFile, false)); /**/
 				BufferedWriter teamWriter = new BufferedWriter(new FileWriter(teamFile, false)); /**/
